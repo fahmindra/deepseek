@@ -1,6 +1,6 @@
 ---
-slug: llm-1
-title: LLM 1
+slug: modul-2
+layout: part
 ---
 
 ![icon llm](https://lms.sdmdigital.id/pluginfile.php/635348/mod_page/content/13/icon%20llm.png)

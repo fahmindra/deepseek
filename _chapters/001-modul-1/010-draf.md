@@ -1,8 +1,7 @@
 ---
-slug: llm-2
-title: LLM 2
+slug: modul-1-1
+title: modul-1-1
 ---
-
 # 1.1. Pengantar GenAI dan AI Engineering: Proses end-to-end Pengembangan Aplikasi AI berbasiskan LLM
 
 ### **1.1.1 Definisi Singkat dari AI Engineering**
