@@ -2,216 +2,132 @@
 slug: modul-2-1
 title: modul-2-1
 ---
-# 1.1. Pengantar GenAI dan AI Engineering: Proses end-to-end Pengembangan Aplikasi AI berbasiskan LLM
+### 2.1 Memahami Masalah Pemodelan Bahasa Secara Statistik
+---
 
-### **1.1.1 Definisi Singkat dari AI Engineering**
+Subtopik ini meletakkan fondasi matematis untuk seluruh modul. Sebelum kita dapat membangun arsitektur yang kompleks, kita harus terlebih dahulu mendefinisikan secara presisi *masalah* apa yang sebenarnya kita coba selesaikan. Fokus kita adalah memandang bahasa bukan sebagai seperangkat aturan tata bahasa yang kaku, tetapi sebagai fenomena statistik yang dapat dimodelkan.
 
-Apa itu *AI Engineering*? *AI Engineering* adalah proses membangun sebuah aplikasi atau sistem yang fungsi utamanya berasal dari kemampuan sebuah Foundation Model. Biasanya ketika orang menyebut *AI Engineering*, Foundation Model yang dimaksud adalah LLM atau jenis model *Generative AI* yang dilatih menggunakan berbagai macam jenis data dan kemudian dapat diadaptasi ke beberapa tugas yang berbeda. *AI Engineer* adalah istilah yang dipakai untuk menyebut individual yang melakukan *AI Engineering*. Untuk mempermudah penyebutan istilah, singkatnya akan disebut saja sistem yang dibangun oleh *AI Engineer* sebagai “Sistem AI” atau “Aplikasi AI”.
+![Gambar 2. Bahasa Pemodelan Statistik](https://lms.sdmdigital.id/pluginfile.php/635361/mod_page/content/25/Gambar2.jpg)
+**Gambar 2. Bahasa Pemodelan Statistik**
 
-*AI Engineering* merupakan sebuah istilah baru yang muncul dari industri. Beberapa hal yang mungkin memiliki pengertian tertentu di dunia akademik memiliki arti yang berbeda di industri. Mari kita luruskan mengenai beberapa hal penting yang perlu dijelaskan terlebih dahulu.
+Untuk mencapai ini, kita harus melakukan transisi fundamental. Kita beralih dari pendekatan linguistik tradisional (yang mungkin berfokus pada *preskripsi* tata bahasa, atau *parsing trees* yang kaku) ke pendekatan *empiris* dan *probabilistik*. Dalam paradigma baru ini, sebuah kalimat tidak lagi hanya "benar" atau "salah" secara *gramatikal*.
 
-### **1.1.2 Memahami istilah-istilah di sekitar AI Engineering**
+Sebaliknya, setiap kalimat memiliki tingkat "kemungkinan" atau "kewajaran" (*plausibility*) yang dapat diukur, yang kita estimasi dari data. Tugas kita sebagai *engineer* adalah membangun sebuah sistem yang dapat menghitung probabilitas ini.
 
-*Artificial Intelligence* atau Kecerdasan Buatan merupakan suatu bidang dalam Ilmu Komputer yang bertujuan untuk mempelajari cara memberikan “kecerdasan” kepada sebuah mesin. Walaupun AI merupakan bidang yang luas yang terdiri dari banyak sub-bidang. Istilah *AI Engineering* di Industri banyak merujuk kepada membangun sistem menggunakan model AI yang masuk ke dalam famili *Generative AI*, utamanya *Large Language Models*.
+Pertanyaannya menjadi: Bagaimana kita secara formal dan matematis merumuskan "probabilitas dari sebuah sekuens teks"? Langkah pertama dalam perjalanan komputasi ini adalah menetapkan definisi yang solid. Kita harus mendefinisikan secara tepat apa yang kita maksud dengan "model" dalam konteks "model bahasa".
 
-*Generative AI* adalah salah satu bidang AI yang berfokus mengembangkan algoritma yang bisa memproduksi sendiri konten seperti gambar, teks, atau suara. *Large Language Model* merupakan salah satu jenis *Generative AI* pada bidang *Natural Language Processing*, sub-bidang AI yang bertujuan memberikan komputer kemampuan memproses teks dan percakapan.
+---
 
-Secara singkat, hubungan dari berbagai istilah ini adalah sebagai berikut:
-* AI itu satu bidang keilmuan yang luas untuk mengembangkan kecerdasan buatan, LLM cuma bagian kecil dari AI.
-* LLM adalah salah satu jenis *Generative Model* di domain *Natural Language Processing*. LLM adalah penerapan Deep Learning pada domain Natural Language Processing.
-* AI terdiri dari banyak sub-bidang, termasuk di antaranya *Natural Language Processing* (memayungi LLM), Machine Learning dan Deep learning (juga memayungi LLM dan Generative Model lainnya).
+#### 2.1.1 Definisi Formal: Model Bahasa (Language Model)
 
-Ilustrasi ini menggambarkan lebih jelas soal hubungan berbagai macam istilah di atas:
+Secara fundamental, sebuah model bahasa (*language model* atau LM) adalah sebuah distribusi probabilitas atas sekuens-sekuens token (misalnya, kata atau karakter) dalam sebuah bahasa. Token adalah satu unit dari vocabulary sebuah model yang dihasilkan melalui proses tokenisasi, dan dapat berupa sebuah kata, potongan sub-kata (*subword piece*), karakter, atau simbol khusus yang diproses oleh LM.
 
-![Gambar 2](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/image6.jpg)
-**Gambar 2. LLM merupakan perpotongan dari berbagai sub-bidang dalam Artificial Intelligence, dimana LLM merupakan irisan dari berbagai bidang seperti NLP, Generative AI, dan Deep Learning.**
+Misalkan kita memiliki sebuah vokabulari $\mathcal{V}$, yaitu himpunan semua token unik yang dikenali oleh model. Sebuah sekuens $W$ didefinisikan sebagai $W = (w_{1'}, w_{2'}, \dots, w_n)$, di mana setiap $w_i \in \mathcal{V}$. Tugas dari sebuah model bahasa adalah untuk menetapkan sebuah probabilitas $P(W)$ ke seluruh sekuens $W$.
 
-LLM merupakan irisan dari NLP (kemampuan memproses bahasa), Generative AI (kemampuan menghasilkan konten baru), dan Deep Learning (menggunakan neural networks berlapis).
+Probabilitas $P(W)$ ini merepresentasikan "kemungkinan" atau "kewajaran" dari sekuens tersebut. Sebuah LM yang baik akan memberikan probabilitas yang lebih tinggi untuk sekuens yang "masuk akal" (secara sintaksis dan semantik) dan probabilitas yang sangat rendah untuk sekuens yang tidak masuk akal.
 
-Sebelum hadirnya LLM, kita telah mengenal istilah *ML Engineering*. *ML Engineer* bertugas mengembangkan dan mempersiapkan model Machine Learning untuk proses *deployment* ke lingkungan *production*. LLM merupakan salah satu jenis model Machine Learning. Apa yang menyebabkan munculnya istilah baru untuk menyebut bidang yang membuat sistem menggunakan LLM? Apa yang berbeda di antara *AI Engineering* dan *ML Engineering*?
+> **Contoh Kasus:**
+> Sebuah LM yang dilatih dengan baik pada korpus Bahasa Indonesia akan menghasilkan estimasi probabilitas sebagai berikut:
+> $P(\{\text{"mahasiswa mengerjakan tugas akhir"}\}) \gg P(\{\text{"tugas akhir mengerjakan mahasiswa"}\})$
+> Meskipun kedua kalimat tersebut menggunakan kata-kata yang valid, model statistik menangkap fakta bahwa urutan pada kalimat pertama jauh lebih sering terjadi dan lebih logis dalam bahasa.
 
-Seorang penulis bernama *Chip Huyen* melakukan survey kepada pelaku industri untuk menjawab pertanyaan ini. Dalam bukunya yang berjudul “*AI Engineering*”, dia menyatakan kalau faktor utamanya adalah sifat dari LLM itu sendiri. Cara mengadaptasikan, cara evaluasi, hingga infrastruktur yang diperlukan untuk membuat sistem berbasis LLM punya perbedaan yang signifikan dengan model ML lainnya, memerlukan disiplin ilmu dan kemampuan yang berbeda sehingga untuk mempermudah pelaku industri, maka muncullah istilah *AI Engineering*.
+Untuk menghitung probabilitas gabungan (*joint probability*) $P(W)$ dari sebuah sekuens, kita dapat menggunakan aturan rantai (*chain rule*) dari probabilitas. Aturan ini menguraikan probabilitas gabungan menjadi produk dari probabilitas kondisional:
 
-Sebagai analogi, seorang Web Developer maupun Android Developer pada dasarnya termasuk dalam ranah **Software Engineering**, karena keduanya berfokus pada pengembangan aplikasi. Namun, pengembangan aplikasi berbasis web dan berbasis Android memerlukan keterampilan yang berbeda, sehingga kedua istilah tersebut dibedakan dalam industri. Hal yang serupa juga terjadi antara **AI Engineering** dan **ML Engineering**. Meskipun keduanya memiliki banyak irisan, perbedaannya tetap cukup signifikan, baik dari segi keterampilan maupun pola pikir yang dibutuhkan. Oleh karena itu, muncul istilah baru, yaitu **AI Engineering**.
+$$P(W) = P(w_1, w_2, \dots, w_n) = P(w_1) \times P(w_2 \mid w_1) \times P(w_3 \mid w_1, w_2) \times \dots \times P(w_n \mid w_1, \dots, w_{n-1})$$
 
-### **1.1.3 Perbedaan ML Engineering dengan AI Engineering**
+dimana $P(w_1|w_0)$ (atau $P(w_1)$) adalah probabilitas kata pertama (seringkali dikondisikan pada token BOS atau Beginning-of-Sequence).
 
-**Tabel 1. Perbandingan antara ML Engineering dengan AI Engineering**
+Dekomposisi Aturan Rantai pada persamaan di atas ini lebih dari sekadar penyederhanaan matematis; ia adalah sebuah wawasan komputasional yang fundamental. Ia mengubah masalah yang tampak sangat sulit (mengestimasi probabilitas dari sebuah sekuens $W$ yang panjangnya $n$ secara holistik) menjadi serangkaian sub-masalah yang berurutan dan lebih mudah dikelola.
 
-| Aspek | ML Engineering | AI Engineering |
+Alih-alih mencoba membangun satu model raksasa yang menerima $n$ kata dan menghasilkan satu nilai probabilitas $P(W)$, aturan rantai memberitahu bahwa kita dapat (dan seharusnya) membangun model yang hanya berfokus pada satu tugas: **mengestimasi probabilitas dari satu token berikutnya, dengan dikondisikan pada histori token sebelumnya**. Jika kita dapat membangun model yang andal untuk tugas $P(w_n \mid w_1, \dots, w_{n-1})$ ini, kita dapat menghitung probabilitas sekuens penuh $P(W)$ hanya dengan mengalikan output model tersebut secara berurutan. Pendekatan inilah yang melahirkan paradigma pelatihan dominan untuk model bahasa modern.
+
+---
+
+#### 2.1.2 Tugas Utama: Prediksi Kata Berikutnya (Next-Token Prediction)
+
+Formulasi aturan rantai di atas secara alami mengubah masalah pemodelan bahasa menjadi tugas yang lebih mudah dikelola: **prediksi kata berikutnya**. Perhatikan komponen $P(w_n \mid w_1, \dots, w_{n-1})$. Ini adalah probabilitas token $w_i$ (token target) dengan syarat (diberikan) semua token sebelumnya (konteks $w_1, \dots, w_{n-1}$).
+
+Sebagian besar Large Language Models modern (terutama arsitektur decoder-only seperti GPT) dilatih secara eksplisit untuk menyelesaikan tugas ini. Mereka adalah model probabilistik autoregresif yang jika diberikan sebuah konteks maka akan menghasilkan sebuah distribusi probabilitas atas seluruh vokabulari $\mathcal{V}$ untuk token berikutnya.
+
+**Contoh Kasus:**
+Misalkan model diberikan konteks: $W = (\text{"Siswa", "sedang", "belajar", "di"})$. Tugas model adalah menghitung $P(w_i \mid \{\text{"Siswa sedang belajar di"}\})$ untuk setiap $w_i$ di $\mathcal{V}$. Model yang baik akan menghasilkan distribusi probabilitas seperti yang diilustrasikan pada Tabel 1.
+
+**Tabel 1. Contoh Distribusi Probabilitas Prediksi Token Berikutnya**
+
+| Token Target ($w_n$) | Probabilitas ($P(w_n \mid \text{"Siswa sedang belajar di"})$) | Keterangan |
 | :--- | :--- | :--- |
-| **Fokus utama** | Membangun, melatih, dan mengoptimalkan model berdasarkan data untuk mencapai metrik akurasi tertentu. | Mendesain sistem berbasis foundation models (misalnya LLM) dengan memanfaatkan instruksi, konteks, dan prompt, sering kali tanpa perlu melatih model dari awal. |
-| **Adaptasi ke use case baru** | Membutuhkan proses training tambahan atau fine-tuning untuk adaptasi tugas baru. | Mengadaptasi via instruksi, konteks, contoh few-shot, atau fine-tuning ringan. Pada skenario tertentu masih dapat dilakukan continued pretraining. |
-| **Jenis input** | Mayoritas data terstruktur atau semi-terstruktur (angka, teks, gambar). | Apa pun yang dapat direpresentasikan sebagai teks (tak terstruktur) maupun terstruktur. |
-| **Sifat model** | Deterministik, yakni input sama menghasilkan hasil yang sama. | Stokastik, yakni input sama dapat memberikan hasil berbeda. |
-| **Peran engineer** | Fokus pada pipeline data, arsitektur model, training, dan optimasi performa. | Fokus pada rancangan prompt, orkestra konteks, pengendalian perilaku model, evaluasi, serta integrasi model dalam sistem end-to-end. |
-| **Tantangan utama** | Feature engineering, masalah training, dan optimasi performa. | Halusinasi, inkonsistensi output, serta kontrol perilaku dan kualitas respons. |
-| **Evaluasi hasil** | Mengevaluasi menggunakan metrik objektif (akurasi, F1, RMSE, dsb.). | Bergantung konteks penggunaan: mulai dari metrik objektif (Perplexity, ROUGE) hingga metrik evaluasi kualitatif yang kadang memerlukan LLM lain (atau human judge) untuk mengevaluasi (LLM-as-a-judge). |
+| "kelas" | 0.35 | Sangat relevan, Probabilitas Tinggi |
+| "perpustakaan" | 0.25 | Relevan, Probabilitas tinggi |
+| "laboratorium" | 0.15 | Relevan, Probabilitas sedang |
+| "rumah" | 0.1 | Relevan, Probabilitas sedang |
+| ... | ... | Tidak Relevan, Token lain dengan probabilitas rendah |
+| "langit" | 0.000001 | Tidak relevan, Probabilitas sangat rendah |
+| "mangga" | 0.0000005 | Tidak relevan, Probabilitas sangat rendah |
+| ... | ... | Tidak relevan, Token lain dengan probabilitas yang sangat rendah |
+| **Total keseluruhan $\mathcal{V}$** | $\sum P(w_i) = 1.0$ | **Probabilitas harus berjumlah 1** |
 
-Sebelum mempelajari lebih lanjut mengenai tanggung jawab seorang AI Engineer, mari kita terlebih dahulu memahami apa yang dimaksud dengan LLM serta kemampuan apa saja yang dimilikinya sehingga dapat menjadi unsur penting dalam pengembangan sistem yang kompleks.
+Tabel 1 mengilustrasikan properti fundamental dari output sebuah model bahasa. Dapat diamati bahwa model tidak sekadar 'memilih' satu kata terbaik. Sebaliknya, ia menghasilkan sebuah **distribusi probabilitas penuh** (seringkali melalui fungsi softmax, yang akan dibahas di Modul 3) atas keseluruhan vokabulari $\mathcal{V}$. Dengan melatih model untuk secara akurat memprediksi token berikutnya pada korpus teks yang sangat besar, model tersebut secara implisit "dipaksa" untuk mempelajari sintaksis, semantik, dan bahkan pengetahuan faktual tentang dunia untuk meminimalkan kesalahannya (loss function).
 
-### **1.1.4 Mengenal LLM**
+*Catatan: Perhatikan bahwa model masih memiliki kemungkinan untuk memilih perpustakaan daripada kelas walaupun kelas memiliki probabilitas yang lebih tinggi.*
 
-*Large Language Models* atau LLM adalah model *Machine Learning* yang dilatih dengan data berskala besar untuk melakukan *Language Modelling* dengan tujuan meniru kemampuan manusia berbahasa. *Language modeling* adalah teknik dalam NLP yang mempelajari pola bagaimana kata-kata atau rangkaian kata muncul bersama dalam sebuah bahasa. Keunikan LLM adalah selain memiliki pemodelan bahasa yang baik yang berasal dari skala data yang digunakan untuk melatihnya, LLM juga bisa dilatih untuk mengikuti instruksi. Selain itu, LLM juga bisa memahami informasi yang diberikan dalam bentuk abstrak (teks bebas, post media sosial, dsb) maupun informasi terstruktur. Pengguna LLM cukup memberikan instruksi dan informasi yang tepat untuk mendapatkan output yang diinginkan.
+Kemampuan untuk menghasilkan distribusi probabilitas yang akurat seperti pada Tabel 1 adalah tujuan akhir kita. Namun, formulasi $P(w_i \mid w_1, \dots, w_{n-1})$ menyembunyikan sebuah tantangan komputasi yang luar biasa besar, yang berakar pada sifat bawaan bahasa itu sendiri.
 
-Karena keunikan ini, LLM menjadi sangat serbaguna karena bisa memproses informasi abstrak hanya dengan instruksi dalam bahasa manusia. Hal ini berbeda dengan pemrograman tradisional, yang memerlukan terlebih dahulu penentuan struktur informasi dan instruksi yang harus mengikuti sintaks tertentu. LLM bisa dipandang sebagai sebuah fungsi atau program yang bisa didefinisikan hanya dengan memberikan instruksi bagaimana program tersebut seharusnya bekerja disertai input yang dibutuhkan ke dalam program tersebut.
+Masalahnya terletak pada **konteks kondisional** $(w_1, \dots, w_{n-1})$. Secara teori, untuk membuat prediksi yang sempurna pada kata ke-i, model harus mempertimbangkan seluruh histori yang mendahuluinya. Dalam bahasa nyata, histori ini bisa jadi sangat panjang dan memiliki variasi yang hampir tak terbatas. Apa yang terjadi ketika model menghadapi sebuah sekuens konteks yang valid secara linguistik, tetapi tidak pernah muncul (atau sangat jarang muncul) dalam miliaran kalimat data latihnya? Bagaimana model harus mengestimasi probabilitas untuk sesuatu yang belum pernah dilihatnya?
 
-### **1.1.5 Memandang LLM secara black box**
-
-Agar mudah dijelaskan, kita lihat terlebih dahulu dari sisi LLM yang input dan outputnya hanya berupa teks. Secara garis besar, input dan output dari sebuah LLM berbentuk teks. Input yang diberikan ke LLM akan mempengaruhi output yang dihasilkan, dan input tersebut dapat diatur atau dirancang sedemikian rupa untuk mencapai perilaku atau keluaran yang kita inginkan.
-
-![Gambar 3](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/high%20level%20black%20box.jpg)
-**Gambar 3. Gambaran high-level black box dari sebuah LLM.**
-
-Sebuah teks bisa merepresentasikan berbagai macam informasi, mulai dari bahasa manusia hingga format informasi terstruktur seperti XML, YAML, JSON, juga syntax dari suatu bahasa pemrograman. Teks juga bisa berisi instruksi maupun informasi yang merepresentasikan konteks. Kalau input dan output dari LLM adalah teks, berarti kita bisa membuat sebuah fungsi yang input dan outputnya apapun selama input dan output ini bisa kita ubah menjadi teks. Fungsi ini juga bisa memiliki perilaku apapun, tergantung instruksi yang diberikan. Contoh: misalnya kita ingin meminta LLM membuat ringkasan dari sebuah teks berita. Maka bentuk input dan output kita akan terlihat seperti berikut:
-
-![Gambar 4](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/ilustrasi%20penerapan%20llm.jpg)
-**Gambar 4. Ilustrasi penerapan LLM untuk meringkas sebuah teks berita.**
-
-Semua teks input perlu digabung dulu menjadi satu teks sebelum masuk LLM. Input ini yang berisi informasi dan instruksi biasanya disebut *prompt*. Selain output teks bebas, LLM juga bisa mengeluarkan output dengan format terstruktur, karena setiap format teks sebenarnya hanya teks dengan syntax tertentu. Contoh: misalnya kita ingin melakukan klasifikasi sentimen dari sebuah post media sosial, dan kita ingin agar outputnya mengikuti format tertentu, maka bentuk interaksinya dapat ditulis seperti berikut:
-
-```json
-{
-  "sentimen": "positif",
-  "penjelasan": "......."
-}
-```
-
-Maka input dan output kita akan terlihat seperti gambar di bawah.
-
-![Gambar 5](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/ilustrasi%20penggunaan%20llm.jpg)
-**Gambar 5. Ilustrasi penggunaan LLM untuk melakukan sentiment classification dengan format output JSON.**
-
-*(Peringatan: LLM tidak selalu menghasilkan JSON yang valid. Sistem AI Engineer harus memiliki error handling untuk kasus-kasus seperti: - Missing closing - Typo pada key name - Extra text before/after JSON)*
-
-Seperti yang dapat dilihat, instruksi tidak hanya dapat mendeskripsikan apa fungsi yang diinginkan, tetapi juga dapat mendeskripsikan format output. Karena output ini masih berupa teks, AI Engineer biasanya perlu memproses kembali output LLM tersebut agar dapat digunakan oleh aplikasinya. Tergantung pada model yang digunakan, umumnya LLM sudah dilatih menggunakan data yang memberikan kemampuan untuk memahami dan menghasilkan output dengan format tertentu.
-
-Walaupun memiliki kelebihan yang unik, LLM tidak selalu memberikan output yang benar. Bisa jadi format yang dihasilkan memiliki sintaks yang keliru, LLM salah menafsirkan instruksi, atau bahkan secara ekstrem LLM dapat mengarang informasi baru. Oleh karena itu, selain mengatur aspek fungsional LLM melalui instruksi dan informasi, AI Engineer juga perlu menangani kondisi-kondisi tersebut agar aplikasi dapat berjalan dengan baik.
-
-### **1.1.6 Apa saja pekerjaan seorang AI Engineer?**
-
-LLM terkesan serbaguna, tapi untuk menggunakannya dengan efektif, kita perlu memikirkan input teks yang tepat dan cara yang benar untuk memproses outputnya. Teks seperti apa yang perlu dimasukkan ke dalam LLM? Output seperti apa yang diinginkan dari LLM, dan nantinya digunakan seperti apa? Bagaimana cara seorang *AI Engineer* memanfaatkan model ajaib ini? Secara garis besar, seorang *AI Engineer* punya empat tanggung jawab utama sebagai berikut:
-
-1.  **Menyiapkan input yang tepat untuk LLM**. AI Engineer memastikan LLM selalu mendapat instruksi dan konteks yang dibutuhkan agar bisa menjalankan tugasnya dengan benar. Ini termasuk membangun sistem atau infrastruktur yang bisa menyediakan input tersebut secara konsisten.
-2.  **Menentukan dan mengontrol output LLM**. Tugasnya bukan cuma menentukan bentuk hasil yang diinginkan, tapi juga memastikan hasil dari LLM sesuai ekspektasi dan memenuhi standar tertentu. Termasuk di dalamnya membangun sistem evaluasi baik dari sisi performa (angka/metrik) maupun kualitas (misalnya gaya bahasa, aspek keamanan, atau memastikan output tidak mengandung konten negatif).
-3.  **Mengatur konfigurasi dan pemilihan model**. AI Engineer menentukan model LLM mana yang dipakai, mengatur parameter-parameter penting, dan menilai apakah perlu dilakukan fine-tuning atau tidak agar sistem bekerja optimal.
-4.  **Menjamin sistem siap dan stabil di production**. Setelah sistem dikembangkan, AI Engineer memastikan semuanya bisa dijalankan di lingkungan produksi dengan lancar dan terpantau dengan baik, termasuk infrastruktur yang mendukung pengembangan lebih lanjut sistemnya.
-
-Bagian selanjutnya akan membahas masing-masing poin di atas secara lebih detail sebelum masuk ke pembahasan teknis di modul berikutnya.
-
-### **1.1.7 Menyiapkan input yang tepat untuk LLM**
-
-Input ke LLM biasanya terdiri dari instruksi disertai dengan Informasi yang relevan, biasanya disebut sebagai konteks. Setelah menentukan instruksi dan mendapatkan informasi yang dibutuhkan, semuanya akan digabung menjadi satu teks yang disebut *prompt*. Bagaimana cara *AI Engineer* menyiapkan dua hal tersebut?
-
-#### **Instruksi**
-Sebelum menentukan instruksi, seorang AI Engineer perlu memahami terlebih dahulu apa kebutuhan bisnisnya. Dari kebutuhan bisnis tersebut kemudian diturunkan menjadi masalah-masalah yang lebih kecil dan lebih terdefinisi. Setiap masalah ini kemudian dipetakan menjadi fungsi yang perlu dibuat, dan dari sana dapat diturunkan kebutuhan instruksi serta konteksnya. Proses ini sangat mirip dengan perencanaan fitur pada perangkat lunak. Perbedaannya adalah, pada kasus ini implementasi utamanya diwujudkan melalui instruksi dan konteks (berupa *prompt*), bukan melalui kode program konvensional.
-
-Ada banyak cara untuk merancang sebuah instruksi. Bisa sesederhana memberi perintah langsung seperti “tolong terjemahkan ke Bahasa Indonesia”, atau bisa juga membutuhkan detail yang lebih lengkap: mengatur gaya bahasa, mendefinisikan peran model, menentukan format output, hingga hal yang lebih kompleks seperti mengatur cara model menyelesaikan masalah (*problem breakdown*) untuk keperluan *reasoning* atau melakukan *planning*.
-
-Tentu instruksi saja tidak memadai. LLM juga perlu diberikan konteks, karena setiap kasus memiliki latar dan detail spesifik yang harus diketahui agar output yang dihasilkan dapat lebih akurat, relevan, dan sesuai dengan instruksi maupun ekspektasi. Dengan demikian, merancang dan menyiapkan konteks yang tepat merupakan salah satu keterampilan inti dalam praktik AI Engineering.
-
-#### **Konteks**
-Tanpa konteks, LLM tidak bisa melakukan instruksinya dengan baik atau malah mengarang asumsi lalu digunakan untuk menjalankan instruksinya. LLM punya “pengetahuan” internal sendiri yang berasal dari data latihnya, tapi setiap penggunaan pasti punya konteks sendiri yang dibutuhkan. misalnya kita ingin LLM mampu mengingat percakapan. Tanpa diberikan *chat* sebelumnya, LLM tidak akan mengerti kalau ditanya soal sesuatu dari percakapan sebelumnya.
-
-Di sisi lain, karena konteks dapat bersumber dari mana saja, konteks tersebut perlu diformat terlebih dahulu agar sesuai dengan bentuk input LLM, yaitu teks. Misalnya ketika kita diminta membuat chatbot yang diberikan konteks berupa dokumen peraturan perusahaan. Dokumen ini dapat berbentuk PDF atau DOCX, dan perlu di-parse terlebih dahulu untuk menjadi teks sebelum dapat dimasukkan ke LLM. Oleh karena itu, tahap konversi dan normalisasi konteks juga merupakan bagian penting dalam alur kerja *AI Engineering*.
-
-Sumber konteks yang berbeda juga memerlukan cara tersendiri untuk mencari dan memprosesnya. Konteks dalam basis data harus di-query terlebih dahulu. Konteks yang tersedia dari layanan internet harus di-request terlebih dahulu. Konteks yang disimpan sebagai berkas harus dibaca terlebih dahulu.
-
-Terakhir, konteks yang diperlukan dapat berbeda pada setiap pemanggilan, sehingga konteks ini harus dimasukkan secara dinamis ke dalam prompt. Sistem yang dibangun *AI Engineer* tidak hanya harus mampu membaca dan memproses konteks, tetapi juga menentukan kapan suatu konteks diperlukan.
-
-#### **Di Luar Prompt**
-Selain memastikan instruksi dan konteks yang tepat diberikan lewat *prompt*, masih ada beberapa hal yang penting untuk dipastikan oleh *AI Engineer*. Prompt yang dikembangkan akan terus menerus diubah seiring dengan pengembangan aplikasi. Karena *prompt* ini berhubungan langsung dengan perilaku model, maka perlu dilakukan ***versioning*** agar setiap versi *prompt* bisa diuji secara terpisah dan dibandingkan satu sama lain. *Versioning* juga memudahkan *rollout* dan *rollback* *prompt* ketika ada versi baru yang mau dirilis atau perlu kembali ke versi sebelumnya karena yang baru ternyata bermasalah.
-
-Belum lagi isu keamanan. LLM tidak membedakan instruksi dari siapapun; selama instruksi dan konteksnya jelas, maka instruksi tersebut akan dijalankan, meskipun instruksi itu datang dari input pengguna. Misalnya pada kasus aplikasi chatbot AI yang menyimpan data pribadi pengguna. Bayangkan ada oknum yang memahami cara kerja sistem tersebut, dan ia mengetahui bahwa aplikasi menyimpan data pribadi yang dapat diakses oleh AI. Oknum tersebut dapat memberikan instruksi melalui chat untuk mengambil data pribadi pengguna lain, dan tanpa mitigasi, LLM berpotensi mengikuti instruksi tersebut. *AI Engineer* juga harus mengantisipasi hal semacam ini dengan mengatur *policy* / *guardrails* yang akan mengawasi input untuk memastikan bahwa inputnya “aman”.
-
-### **1.1.8 Memastikan output yang tepat keluar dari LLM**
-
-Output dari model LLM adalah sebuah teks. Jika teks tersebut sudah memenuhi kebutuhan aplikasi, maka tidak diperlukan pemrosesan lebih lanjut. Namun dalam praktiknya, banyak aplikasi yang membutuhkan keluaran dengan struktur tertentu, misalnya format JSON agar dapat langsung dipetakan menjadi dictionary Python, atau format tabel agar dapat langsung dimasukkan ke database atau diproses modul lain. Untuk kasus seperti ini, AI Engineer perlu menambahkan lapisan pasca-pemrosesan (*post-processing*) yang bertugas memvalidasi format, mem-parse output, dan mengekstrak informasi agar hasil dari LLM dapat digunakan secara konsisten dalam sistem.
-
-Selain itu, LLM dapat juga memberikan output yang salah, mengarang informasi, salah mengerti instruksi, memberikan output di luar yang diminta, dan bisa jadi outputnya berpotensi merugikan. AI Engineer harus memastikan output LLM valid untuk digunakan lebih lanjut. Bayangkan kembali use case sentiment analysis pada contoh sebelumnya yang ditunjukkan pada Gambar 5. Skenario kegagalan apa saja yang mungkin terjadi?
-
-*   Output bukan dalam format JSON (format berbeda dari yang diminta).
-*   JSON tidak valid (gagal di-parse sehingga tidak bisa diproses lebih lanjut).
-*   Output mengandung JSON sekaligus teks lain (memerlukan pemrosesan tambahan untuk mengekstrak JSON).
-*   LLM menambahkan kategori sentimen yang tidak diminta (misalnya diminta hanya positif/negatif, tetapi model menambahkan *netral*/*unknown*).
-*   Struktur JSON tidak sesuai spesifikasi (misalnya nama key berbeda atau urutan atau tipe nilainya tidak konsisten).
-
-Apa yang bisa dilakukan AI Engineer untuk mengatasi atau mengantisipasi masalah tersebut?
-*   Mengubah instruksi agar lebih spesifik, misalnya secara eksplisit menentukan daftar kategori sentimen yang valid.
-*   Menambahkan contoh output pada instruksi, termasuk format JSON dan kategori sentimen yang diperbolehkan.
-*   Mengimplementasikan parser yang mampu mencoba mem-*parse* JSON yang tidak ideal atau sebagian benar.
-*   Mengimplementasikan mekanisme *retry* dengan *feedback*, misalnya menggunakan pesan galat dari proses parsing JSON sebagai konteks tambahan untuk menghasilkan ulang (*regenerate*) output yang lebih benar.
-
-Selain itu, sama seperti pada sisi input, output yang dihasilkan juga dapat bersifat berbahaya. Kembali ke contoh sebelumnya: misalkan meskipun sudah diberi pengamanan di sisi input, LLM masih tetap memberikan informasi pribadi pengguna lain ketika diminta. Pada kasus lain, LLM dapat mengeluarkan respons yang tidak relevan dengan topik, menggunakan bahasa yang tidak pantas, atau menyebutkan hal yang seharusnya tidak diungkapkan.
-
-*Policy* atau *guardrails* (filter pengaman) juga perlu diterapkan pada sisi output. Berdasarkan kriteria tertentu, output yang tidak memenuhi aturan dapat difilter, kemudian sistem dapat memilih untuk meminta model melakukan *regeneration* atau mengembalikan *respons template*, tergantung pilihan desain yang paling sesuai dengan *use case*. Contohnya: ketika LLM mengembalikan kategori sentimen yang tidak valid, respons tersebut dapat langsung ditolak dan sistem meminta model menghasilkan ulang. Atau pada kasus keamanan, jika output terdeteksi berisi informasi yang tidak pantas, sistem dapat mengembalikan pesan standar seperti “permintaan ini tidak dapat dilayani”.
-
-Dengan demikian, selain memastikan input sudah benar, *AI Engineer* juga harus memastikan output LLM melewati proses quality control sebelum dikonsumsi oleh aplikasi. Di level implementasi, ini berarti *AI Engineer* bertanggung jawab merancang filter, validator, *schema checking*, dan logika penanganan kesalahan yang memadai sehingga model tidak hanya berfungsi, tetapi juga aman, konsisten, dan dapat dipakai secara reliabel dalam sistem produksi.
-
-![Gambar 6](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/peran%20AI%20engineer.jpg)
-**Gambar 6. Ilustrasi peran AI Engineer dalam “menjaga” output dari LLM**
-
-### **1.1.9 Menentukan konfigurasi LLM yang tepat**
-
-Seorang AI Engineer juga memiliki tanggung jawab untuk melakukan konfigurasi LLM yang dipakai. Konfigurasi ini melibatkan dua bagian, yaitu:
-*   Menentukan LLM yang dipakai, dan
-*   Memilih konfigurasi yang tepat untuk LLM yang digunakan.
-
-#### **Menentukan model LLM yang dipakai serta cara mengaksesnya**
-*AI Engineer* perlu memilih antara menggunakan LLM yang disediakan melalui API oleh berbagai penyedia layanan dan melakukan *self hosting* atau mengatur sendiri infrastruktur untuk menjalankan dan menggunakan LLM, termasuk memutuskan apakah bisa menggunakan model yang sudah dilatih, atau perlu mengembangkan dulu model yang dibutuhkan melalui berbagai macam cara, seperti melatih model dari nol atau mengadaptasikan model yang sudah ada melalui fine tuning untuk sebuah task spesifik atau *continued pretraining*, yaitu melatih ulang sebuah model untuk memberikan pengetahuan lebih spesifik di suatu domain.
-
-#### **Menentukan konfigurasi yang tepat untuk LLM yang digunakan**
-LLM memiliki berbagai macam parameter untuk proses *inference*, seperti parameter untuk *sampling* (bagian dari cara LLM menghasilkan output) atau parameter lainnya seperti YaRN scaling untuk meningkatkan *context window* (jumlah total input dan output yang bisa diproses LLM). Seorang *AI Engineer* harus memahami apa saja parameter ini, efeknya, serta mampu melakukan iterasi untuk memilih nilai yang tepat untuk penggunaan yang diinginkan.
-
-![Gambar 7](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/peran%20AI%20engineer2.jpg)
-**Gambar 7. Peran AI Engineer: AI Engineer memiliki peran selayaknya seorang mekanik yang membangun sebuah mobil. Dia memiliki mesin yang tepat (model LLM), melakukan tuning dan merangkai sistemnya, lalu memonitor dan mengevaluasi kinerja dari keseluruhan sistem.**
-
-### **1.1.10 Membangun sistem berbasis LLM**
-
-Tanggung jawab untuk mengelola input dan output LLM diwujudkan dalam bentuk sebuah sistem yang mengelilingi LLM. Sistem ini dapat memiliki banyak komponen sesuai kebutuhannya, tetapi secara konseptual dapat dipisahkan menjadi dua bagian: komponen LLM dan komponen non-LLM. Bagian non-LLM inilah yang bertugas mengimplementasikan seluruh kebutuhan untuk mengatur input dan output LLM, termasuk melakukan validasi, filtering, transformasi, serta kontrol atas kualitas keluaran. Selain itu, bagian non-LLM juga dapat berisi *business logic* yang dibutuhkan untuk benar-benar menyelesaikan masalah bisnis yang menjadi tujuan aplikasi.
-
-![Gambar 8](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/diagram%20high%20level.jpg)
-**Gambar 8. Diagram high level sebuah sistem berbasis LLM yang terdiri dari LLM dan bagian non-LLM dari sebuah sistem.**
-
-Bagian non-LLM dari sistem seringkali justru lebih besar daripada bagian yang secara langsung berinteraksi dengan pemanggilan LLM, dan bisa meliput bermacam hal, seperti *vector database* dan *pipeline ingestion* dokumen, grafik yang merepresentasikan sebuah *workflow*, bermacam implementasi tool yang bisa dipanggil LLM, *guardrails*, dan lain sebagainya. Bagian bagian individual ini akan dibahas pada modul selanjutnya.
-
-### **1.1.11 Multi-modal LLM**
-
-Sebagian LLM bisa memproses input selain teks, seperti gambar, audio, video, dan lainnya. Model ini disebut multi-modal LLM.
-
-![Gambar 9](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/ilustrasi%20modal%20llm.jpg)
-**Gambar 9. Ilustrasi multi-modal LLM.**
-
-Apa pun jenis inputnya, tanggung jawabnya tetap sama. *AI Engineer* perlu membangun infrastruktur dan sistem agar LLM dapat menerima input, melakukan filtering, mengorkestrasi berbagai sumber data agar dapat diakses melalui sistem, serta menangani tanggung jawab operasional lainnya.
-
-### **1.1.12 Membawa sistem ke production dan memastikan sistem berjalan dengan baik di production**
-
-Sistem LLM pada akhirnya adalah sebuah sistem *software*. Dan sebagaimana sistem *software* lainnya, kualitasnya tidak ada artinya apabila tidak dibawa ke *production* untuk benar-benar digunakan oleh pengguna atau stakeholder. Karena itu, *AI Engineer* juga bertanggung jawab menyiapkan sistemnya agar siap di-deploy ke lingkungan *production*. Lingkungan production memiliki kebutuhan operasional yang berbeda dari sekadar prototype atau demo, misalnya: memonitor performa sistem, melakukan pembaruan sistem, memasang logging dan alert ketika terjadi kesalahan atau *crash*, mengumpulkan data kesalahan untuk dianalisis, dan lain sejenisnya.
-
-Selain itu, *AI Engineer* juga perlu menyiapkan infrastruktur untuk menjalankan sistem di *production* (misalnya server, kontainerisasi, orkestrasi, CI/CD), dan melakukan proses *deployment* itu sendiri. Pada praktiknya, tidak semua tanggung jawab ini selalu dilakukan oleh satu orang (bisa dibantu DevOps / platform engineer), tetapi seorang *AI Engineer* perlu memahami bahwa sistem LLM yang ia bangun baru dianggap “selesai” apabila mampu beroperasi dengan stabil, aman, dan terukur di lingkungan *production*.
-
-Setelah deployment, tanggung jawab *AI Engineer* masih belum selesai, karena sistem yang berjalan di *production* tidak selalu berjalan mulus. Setiap kali ada insiden, error, atau masalah apapun di *production*, *AI Engineer* harus melakukan diagnosa untuk memahami apa yang terjadi, membuat rencana pengembangan selanjutnya, lalu mengeksekusi rencana tersebut dan melakukan *deployment* lagi untuk versi sistem yang lebih baru.
-
-Banyak konsep *ML Engineering* yang masih berlaku untuk *AI Engineering*, seperti mengidentifikasi *drift*, melakukan error analysis ketika terjadi error, baik itu dari segi output sistem maupun error yang terjadi saat sistem sedang berjalan, setup *feedback loop* untuk mengumpulkan data dan *insight* mengenai perilaku sistem di *production* yang bisa digunakan untuk retraining (atau dalam kasus sistem LLM, mengatur ulang *prompt*, menambahkan example, atau menambahkan rules), dan melakukan evaluasi di *production* untuk mengukur metrik-metrik performa dari sistem secara keseluruhan.
-
-Seorang *AI Engineer* tidak hanya bertugas memastikan input yang tepat, output yang sesuai harapan, serta konfigurasi LLM yang pas, tetapi juga harus memperhatikan aspek production dalam membangun sebuah sistem AI. Dengan kata lain, tanggung jawab *AI Engineer* itu bukan hanya soal “membuat LLM bekerja”, tetapi memastikan keseluruhan sistemnya dapat dioperasikan dengan aman, stabil, dan berkelanjutan ketika digunakan secara nyata oleh pengguna. Inilah cara pandang yang komprehensif untuk memahami lingkup peran *AI Engineer* modern.
-
-![Gambar 10](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/ilustrasi%20tanggung%20jawab%20AI%20eng.jpg)
-**Gambar 10. Ilustrasi keseluruhan tanggung jawab AI Engineer**
+Di sinilah kita berhadapan langsung dengan dua rintangan kembar yang telah mendefinisikan bidang pemodelan bahasa statistik selama beberapa dekade: skala kombinatorial bahasa dan konsekuensi logisnya, yaitu kelangkaan data.
 
 ---
 
-### **Mini Quiz**
-*(Interaktif - Tidak tersedia dalam format teks)*
+#### 2.1.3 Tantangan Fundamental: Sparsitas Data dan Skala Kombinatorial
+
+Masalah pemodelan bahasa, terutama ketika didekati menggunakan aturan rantai penuh $P(w_i \mid w_1, \dots, w_{i-1})$, menghadapi dua tantangan komputasi dan statistik yang sangat besar yaitu sebagai berikut:
+
+*   **Ledakan Kombinatorial (Combinatorial Explosion):** Jumlah kemungkinan sekuens kata tumbuh secara eksponensial seiring dengan panjang sekuens $n$ dan ukuran vokabulari. Jika $|\mathcal{V}| = 50,000$ (standar umum), jumlah sekuens dengan panjang 10 adalah $50,000^{10}$, sebuah angka yang sangat besar.
+*   **Sparsitas Data (Data Sparsity):** Sparsitas Data adalah sebuah fenomena dimana sebagian besar sekuens kata yang valid secara teoritis tidak pernah muncul (atau sangat jarang muncul) dalam data latih (corpus), tidak peduli seberapa besar korpus tersebut.
+
+Akibat sparsitas data, estimasi berbasis hitungan langsung (sekadar "menghitung kemunculan") sering memberi probabilitas nol untuk urutan yang tak pernah terlihat, sehingga model gagal menggeneralisasi. Sebagai contoh, untuk mengestimasi $P(\text{"Transformer"} \mid \text{"Arsitektur neural modern yang disebut"})$ maka, kita mungkin tidak akan pernah menemukan konteks "Arsitektur neural modern yang disebut" di data latih kita, dan jika kita hanya mengandalkan perhitungan frekuensi, probabilitas untuk konteks yang tidak terlihat (*unseen contexts*) akan menjadi nol, yang merupakan estimasi yang buruk.
+
+![Gambar 3. Visualisasi Ruang Sekuens Teoretis vs. Data Korpus Terobservasi](https://lms.sdmdigital.id/pluginfile.php/635361/mod_page/content/25/image%20%283%29.png)
+**Gambar 3. Visualisasi Ruang Sekuens Teoretis vs. Data Korpus Terobservasi**
+
+Gambar 3 mengilustrasikan masalah dimana ruang dari semua kemungkinan kalimat sangat besar, sementara korpus data latih kita (sekalipun miliaran dokumen) hanya mencakup sebagian kecil dari ruang tersebut.
+
+Tantangan sparsitas inilah yang memotivasi evolusi pemodelan bahasa. Kita memerlukan model yang dapat menggeneralisasi dari data yang terlihat ke data yang tidak terlihat. Model harus belajar bahwa konteks $\text{"Siswa belajar di"}$ dan $\text{"Mahasiswa belajar di"}$ memiliki kemiripan semantik, dan oleh karena itu, prediksi kata berikutnya harus serupa.
+
+Kita telah menetapkan bahwa tantangan sparsitas dan skala kombinatorial (2.1.3) adalah rintangan fundamental. Menghadapi masalah yang begitu sulit, sebuah pertanyaan logis akan muncul: Mengapa kita mengerahkan begitu banyak upaya komputasi dan penelitian hanya untuk mengestimasi $P(W)$?
+
+Jawabannya adalah karena pemodelan bahasa merupakan masalah hulu (*upstream problem*) yang sangat fundamental dalam NLP dan memiliki implikasi langsung ke banyak aplikasi nyata. Keberhasilan dalam mengaproksimasi $P(W)$ secara langsung membuka kemampuan untuk melakukan berbagai tugas hilir (*downstream tasks*) yang sangat bernilai. Kemampuan untuk menilai "kewajaran" sebuah kalimat secara statistik sangat esensial untuk hampir semua hal yang kita asosiasikan dengan "pemahaman" bahasa. Oleh karena itu, sebelum kita menyelam ke cara memecahkan masalah ini (dimulai dengan n-gram di 2.2), subtopik penutup ini akan memetakan implikasi dan aplikasi praktis dari apa yang kita dapatkan jika kita berhasil.
 
 ---
 
-> ***Refleksi Singkat***
->
-> Pada tahun 2015, muncul paper berjudul “Hidden Technical Debt in Machine Learning Systems” yang ditulis oleh tim Machine Learning Google. Salah satu bahasan paper ini adalah bermacam-macam masalah yang unik dihadapi oleh sistem ML di *production* dan cara-cara untuk menghadapinya. Ada diagram yang cukup populer di paper tersebut yang menunjukkan bahwa pada sebuah sistem ML, meskipun fungsionalitas utamanya berasal dari sebuah algoritma ML, kode yang melibatkan ML hanya merupakan bagian kecil dari sistem secara keseluruhan.
->
-> ![Gambar 11](https://lms.sdmdigital.id/pluginfile.php/635349/mod_page/content/19/ilustrasi%20kenyataan%20sistem%20ML.jpg)
-> **Gambar 11. Ilustrasi kenyataan dari sebuah sistem ML**
-> *Sumber Gambar: diambil dari paper “Hidden Technical Debt in Machine Learning Systems”.*
->
-> Apakah menurutmu temuan di *paper* tersebut masih berlaku untuk *AI Engineering*? Atau malah justru makin berlaku? Kira kira apa perbedaan antara infrastruktur sistem ML dan sistem berbasis LLM? Coba tanyakan pada teman atau kolega yang berprofesi sebagai *ML Engineer* atau *AI Engineer*. Meskipun sudah 10 tahun sejak paper tersebut dirilis, pengetahuan mengenai MLOps masih sangat penting karena banyak konsep dasar yang masih relevan untuk membawa sistem berbasis LLM ke *production*.
+#### 2.1.4 Implikasi dan Aplikasi Pemodelan Bahasa
+
+Kemampuan untuk memodelkan $P(W)$ secara akurat memiliki implikasi yang sangat luas di luar sekadar "menebak kata berikutnya". Model bahasa yang kuat berfungsi sebagai fondasi untuk berbagai tugas Natural Language Processing.
+
+**Tabel 2. Aplikasi Inti dari Model Bahasa Statistik**
+
+| Aplikasi | Deskripsi Cara Kerja |
+| :--- | :--- |
+| Teks Generasi (Autoregresif) | Menghasilkan teks baru dengan mengambil sampel (sampling) berulang kali dari distribusi $P(W)$ |
+| Peringkasan Teks | Model Encoder-Decoder (Subtopik 2.5) dilatih untuk menghasilkan sekuens ringkasan yang memaksimalkan probabilitas $P(\{\text{Ringkasan}\})$ |
+| Translasi Mesin | Model dilatih untuk memaksimalkan probabilitas sekuens terjemahan (misal, Bahasa Indonesia) yang dikondisikan pada sekuens input (misal, Bahasa Inggris), yaitu $P(W)$ |
+| Pengenalan Ucapan (Voice Recognition) | Dari sinyal audio, sistem ASR menghasilkan beberapa hipotesis transkrip. LM kemudian digunakan untuk "menilai" transkrip mana yang paling mungkin (memiliki $P(W)$ tertinggi) secara linguistik. |
+| Koreksi Ejaan | Model dapat mengevaluasi $P(\{\text{"Saya pergi ke pasar"}\}) > P(\{\text{"Saya prgi ke pasar"}\})$ dan menyarankan koreksi yang memiliki probabilitas lebih tinggi. |
+
+Kita telah mendedikasikan Subtopik 2.1 untuk menetapkan apa masalah pemodelan bahasa (mengestimasi $P(W)$) dan mengapa ia penting (aplikasi di Tabel 2). Kita juga telah mengidentifikasi rintangan utamanya: sparsitas data (Gambar 3), yang membuat estimasi $P(w_n \mid w_1, \dots, w_{n-1})$ untuk histori penuh menjadi mustahil secara komputasi.
+
+Di subtopik berikutnya, kita beralih ke "bagaimana" kita secara praktis mengaproksimasi solusi $P(W)$. Untuk mengatasi masalah sparsitas, kita harus membuat sebuah asumsi penyederhanaan (*simplifying assumption*).
+
+Pendekatan statistik klasik pertama adalah dengan mengadopsi asumsi Markov: alih-alih melihat seluruh histori, kita berasumsi probabilitas sebuah kata hanya bergantung pada $n-1$ kata sebelumnya. Asumsi inilah yang melahirkan model n-gram, fondasi statistik yang akan kita bedah di subtopik berikutnya.
+
+---
+
+### Mini Quiz
+
+*Silakan akses Mini Quiz melalui tautan berikut:*
+[Multiple Choice Quiz - Subtopik 2.1](https://lms.sdmdigital.id/h5p/embed.php?url=https%3A%2F%2Flms.sdmdigital.id%2Fpluginfile.php%2F635361%2Fmod_page%2Fcontent%2F25%2Fmultiple-choice-197.h5p)
+
+---
+
+> **Refleksi Singkat**
+> *Dalam Subtopik 2.1, kita telah mendefinisikan masalah $P(W)$. Bayangkan sebuah pendekatan di mana kita mengestimasi probabilitas sebuah sekuens hanya berdasarkan frekuensi kemunculan eksplisitnya di dalam korpus data latih. Jika sebuah sekuens yang valid secara semantik (misal: "astronom mengamati supernova") kebetulan tidak pernah muncul (memiliki 0 kemunculan) dalam data latih kita, berapa nilai probabilitas yang akan diberikan oleh pendekatan tersebut? Fenomena apa yang diilustrasikan oleh Gambar 3 yang menjelaskan masalah fundamental ini?*

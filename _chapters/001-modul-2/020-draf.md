@@ -3,95 +3,189 @@ slug: modul-2-2
 title: modul-2-2
 ---
 
-### 1.2. Konsep Matematika Penting untuk Memahami LLM
+### 2.2 Pemodelan Bahasa Menggunakan N-gram dan Kneser-Ney Smoothing
 ---
 
-Sebelum masuk ke bagian modul yang lebih dalam membahas mengenai cara kerja dan komponen pembangun sebuah LLM, mari terlebih dahulu mengulang kembali beberapa konsep matematika yang relevan untuk dipahami kembali sebelum mempelajari cara kerja LLM dan komponen dibaliknya.
+Pada Submodul 2.1, kita telah mendefinisikan masalah inti pemodelan bahasa: bagaimana cara mengestimasi probabilitas $P(W)$ dari sebuah sekuens? Kita juga telah melihat bahwa aturan rantai (*Chain Rule*) secara teoritis memecah masalah ini menjadi $P(w_n \mid w_1, \dots, w_{n-1})$, atau "probabilitas kata berikutnya berdasarkan seluruh histori sebelumnya."
 
-### **1.2.1 Matriks dan Tensor**
+Namun, kita juga telah mengidentifikasi tantangan terbesarnya mengenai **sparsitas data**. Seperti yang diilustrasikan oleh Gambar 3, ruang dari semua kalimat yang mungkin jauh lebih masif daripada data yang bisa kita kumpulkan. Secara praktis, hampir mustahil kita menemukan konteks histori $w_1, \dots, w_{n-1}$ yang panjang dan spesifik di dalam data latih.
 
-Sebuah matriks merupakan susunan angka dalam kolom dan baris yang membentuk sebuah persegi panjang. Sebuah matriks memiliki 2 dimensi yang mewakili baris dan kolomnya. Matriks biasanya digunakan sebagai representasi yang compact untuk mendeskripsikan hubungan antara dua index pada dimensi yang berbeda dalam sebuah operasi, yang biasanya digunakan untuk mendeskripsikan sebuah transformasi linear yang dilakukan dengan melakukan operasi matriks. Sebagai contoh, operasi linear untuk melakukan transformasi input dengan dimensi 3 dan output dengan dimensi 2 bisa direpresentasikan sebagai berikut:
+Untuk membuat masalah ini dapat dipecahkan secara komputasi, kita harus membuat sebuah **asumsi penyederhanaan** yang kuat. Bagaimana jika, alih-alih melihat seluruh histori, kita berasumsi bahwa probabilitas sebuah kata hanya bergantung pada $n$ kata sebelumnya yang paling baru?
 
-![Representasi operasi linear matriks](https://lms.sdmdigital.id/pluginfile.php/635350/mod_page/content/15/image21.png)
-**Gambar 12. Representasi operasi linear menggunakan matriks.**
+Inilah ide fundamental di balik model n-gram. Model n-gram adalah pendekatan statistik klasik pertama yang sangat sukses dalam mengaproksimasi $P(W)$. Selama beberapa dekade sebelum era deep learning, model-model ini adalah teknologi andalan yang digunakan dalam aplikasi speech recognition, machine translation, dan spell checking.
 
-Notasi ∈ℝM⨉N artinya suatu matriks merupakan anggota dari himpunan matriks bilangan real dengan ukuran M⨉N.
-
-b₁₁ merepresentasikan hubungan antara a₁ dengan y₁, b₁₂ merepresentasikan hubungan antara a₂ dengan y₁, dan seterusnya. Perkalian matriks *B* merepresentasikan suatu transformasi linear dari R₃→R₂: setiap keluaran adalah kombinasi linear dari komponen input. Secara teori, setiap transformasi linear dapat direpresentasikan sebagai perkalian matriks, dengan ukuran matriks yang harus sesuai (jumlah baris sama dengan dimensi output, dan jumlah kolom sama dengan dimensi input). Penambahan bias *C* akan menggeser hasil transformasi tersebut. Secara geometris, hal ini mengubah transformasi linear menjadi transformasi *affine* (linear dan translasi): *y=Bx+C*. Tanpa bias, semua pemetaan “melewati” titik asal (origin). Dengan bias, hasil dapat digeser sehingga tidak harus melalui origin. Hal ini penting pada banyak model (misalnya jaringan saraf atau SVM), agar *hyperplane* atau garis keputusan tidak dipaksa melewati origin.
-
-Sebuah matriks dengan dimensi A x B bisa difaktorisasi untuk merepresentasikannya sebagai perkalian dua matriks dengan dimensi A x R dan R x B. Dimensi R bisa memiliki angka berapapun. Dekomposisi matriks memiliki banyak kegunaan, seperti mendapatkan insight penting mengenai struktur matriks (PCA, SVD) atau merepresentasikan sebuah matriks yang besar sebagai perkalian dua matriks kecil dengan memilih nilai R yang lebih kecil dari A dan B. Merepresentasikan sebuah matriks besar sebagai perkalian dua matriks yang lebih kecil ini disebut sebagai low-rank decomposition. Contohnya, sebuah matriks M kita representasikan sebagai perkalian dari dua matriks lain yaitu matriks U dan matriks V.
-
-![Ilustrasi low-rank decomposition](https://lms.sdmdigital.id/pluginfile.php/635350/mod_page/content/15/image26.png)
-**Gambar 13. Ilustrasi *low-rank decomposition*.**
-
-Dengan memfaktorkan matriks besar tersebut menjadi perkalian dua matriks yang berukuran lebih kecil, komputasi menjadi lebih sederhana dan kebutuhan memori untuk penyimpanan juga berkurang.
-
-![Rasio kompresi matriks](https://lms.sdmdigital.id/pluginfile.php/635350/mod_page/content/15/image3.png)
-**Gambar 14. Dengan memilih R yang cukup kecil di bawah A dan B, rasio kompresi yang cukup tinggi bisa dicapai.**
-
-Matriks dapat digeneralisasi untuk mendeskripsikan hubungan antara berapapun jumlah indeks sebagai **Tensor**. Matriks sendiri bisa disebut sebagai sebuah **Tensor** dua dimensi. Operasi **Tensor** merupakan konsep dasar yang membangun berbagai macam algoritma *Deep Learning*.
+Meskipun model n-gram saat ini telah banyak digantikan oleh arsitektur neural network yang lebih kuat (akan dibahas pada bagian 2.3), memahami n-gram tetap relevan karena konsep dasarnya menjadi fondasi bagi teknik pemodelan bahasa yang lebih modern. Model n-gram memberi kita fondasi penting untuk memahami konsep inti seperti **konteks, sparsitas,** dan **smoothing,** yang tetap menjadi tantangan relevan bahkan di era LLM modern.
 
 ---
 
-### **1.2.2 Vektor**
+#### 2.2.1 Model n-gram dan Asumsi Markov
 
-Secara geometris, vektor adalah besaran yang memiliki nilai dan arah di dalam suatu ruang. Vektor dapat dipandang sebagai deretan angka yang masing-masing merepresentasikan posisi pada sumbu tertentu. Berikut adalah contoh vektor dengan 3 komponen:
+Seperti yang telah dibahas, mengestimasi $P(w_n \mid w_1, \dots, w_{n-1})$ (probabilitas kata $w_i$ berdasarkan seluruh histori) sangat sulit karena sparsitas membuat banyak urutan sangat jarang muncul sehingga probabilitasnya mendekati nol. Solusi dari model n-gram adalah dengan menerapkan asumsi Markov.
 
-![Contoh vektor 3 komponen](https://lms.sdmdigital.id/pluginfile.php/635350/mod_page/content/15/image19.png)
+> **Apa itu Asumsi Markov?**
+> Asumsi Markov adalah sebuah asumsi penyederhanaan yang menyatakan bahwa probabilitas sebuah kejadian (kata) di masa depan hanya bergantung pada sejumlah terbatas $n$ kejadian (kata) sebelumnya yang paling baru, bukan pada seluruh histori.
 
-Dalam aljabar linier, sebuah vektor umumnya direpresentasikan sebagai matriks kolom. Vektor di atas dapat direpresentasikan sebagai berikut:
+Berdasarkan asumsi ini, kita mengaproksimasi probabilitas konteks penuh:
 
-![Representasi vektor matriks kolom](https://lms.sdmdigital.id/pluginfile.php/635350/mod_page/content/15/image11.png)
+$$P(w_n \mid w_1, \dots, w_{n-1}) \approx P(w_n \mid w_{n-1})$$
 
-Dalam konteks Machine Learning, vektor berfungsi sebagai representasi numerik dari suatu entitas baik yang bersifat konkret seperti kata, gambar, atau wajah, maupun yang bersifat abstrak seperti makna atau hubungan antar konsep. Melalui representasi ini, mesin dapat memahami dan memanipulasi hubungan antar entitas secara geometris, sehingga kedekatan makna atau kemiripan konsep dapat diukur sebagai jarak antar titik dalam ruang.
+Persamaan tersebut dapat dilihat di [Buku Jurafsky](https://web.stanford.edu/~jurafsky/slp3/ed3book_aug25.pdf) pada Chapter 3 halaman 40. Model yang menggunakan asumsi ini disebut **model n-gram.** Nilai $n$ menentukan seberapa banyak konteks yang kita "ingat".
 
-Operasi vektor yang paling relevan dengan *Machine Learning* adalah operasi linear yang sudah dijelaskan di bagian matriks, dan mengukur kedekatan antara dua vektor. Dalam Machine Learning, kedekatan antara dua vektor biasanya diukur menggunakan *L1 Distance, L2 Distance, dan Cosine Similarity*.
+**Analogi**
+Model n-gram bekerja seperti seorang analis yang memiliki "memori jangka pendek" yang terbatas.
+*   **Unigram $(n=1)$:** Tidak memiliki memori sama sekali. Ia hanya tahu frekuensi kata secara umum $(P(w_i))$.
+*   **Bigram $(n=2)$:** Hanya mengingat 1 kata sebelumnya $(P(w_i \mid w_{i-1}))$.
+*   **Trigram $(n=3)$:** Mengingat 2 kata sebelumnya $(P(w_i \mid w_{i-2}, w_{i-1}))$.
 
-![Rumus L1, L2, dan Cosine Similarity](https://lms.sdmdigital.id/pluginfile.php/635350/mod_page/content/15/image27.png)
-**Gambar 15. Ukuran kedekatan vektor yang biasanya digunakan dalam *Machine Learning*.**
+Semakin tinggi $n$, model semakin kontekstual, tetapi juga semakin rentan terhadap masalah sparsitas (karena konteks $n-1$ kata menjadi semakin spesifik dan langka).
 
-**L1 dan L2 Distance**
+**Tabel 3. Perbandingan model n-gram secara umum.**
 
-Secara fisis, bila setiap vektor dibayangkan sebagai sebuah panah yang menunjuk ke suatu arah dalam ruang, L1 dan L2 *Distance* menghitung jarak antara dua titik yang ditunjuk oleh masing-masing vektor.
+| Model (Nilai n) | Asumsi | Contoh Aproksimasi untuk $P(\text{"nasi"} \mid \text{"saya"}, \text{"makan"})$ |
+| :--- | :--- | :--- |
+| Unigram ($n=1$) | $P(w_i)$ | $P(\text{"nasi"})$ |
+| Bigram ($n=2$) | $P(w_i \mid w_{i-1})$ | $P(\text{"nasi"} \mid \text{"makan"})$ |
+| Trigram ($n=3$) | $P(w_i \mid w_{i-2}, w_{i-1})$ | $P(\text{"nasi"} \mid \text{"saya"}, \text{"makan"})$ |
 
-**Cosine Similarity**
+Tabel 3 di atas mengilustrasikan secara jelas bagaimana asumsi Markov diterapkan dalam praktiknya. Perhatikan bahwa masalah intinya selalu sama. Namun, setiap model n-gram secara drastis menyederhanakan masalah tersebut dengan "memotong" konteks yang dilihatnya:
+*   **Unigram** mengabaikan semua konteks dan hanya bertanya, "Seberapa sering 'nasi' muncul secara umum?"
+*   **Bigram** hanya melihat satu kata sebelumnya dan bertanya, "Seberapa sering 'nasi' muncul setelah 'makan'?"
+*   **Trigram** melihat dua kata sebelumnya dan bertanya, "Seberapa sering 'nasi' muncul setelah 'saya makan'?"
 
-*Cosine similarity* mengukur sudut antara dua vektor untuk mengukur seberapa mirip arah dari dua vektor. Berbeda dengan L1 dan L2 Distance, *Cosine Similarity* memiliki sebaran nilai yang terbatas, antara 0 dan 1 dan tidak terlalu memperdulikan nilai dari masing-masing vektor, hanya kemiripan arahnya saja.
+Dengan mengubah masalah dari "histori tak terbatas" menjadi "konteks $n-1$ kata", kita sekarang memiliki probabilitas yang lebih sederhana.
 
-Masing masing ukuran kedekatan bisa divisualkan sebagai berikut:
+> **Bagaimana kita menghitung probabilitas ini?**
+> Kita menggunakan metode yang disebut Maximum Likelihood Estimation (MLE), yang secara sederhana berarti "menghitung frekuensi relatif" dari data latih (korpus).
 
-![Visualisasi L1, L2, dan Cosine Similarity](https://lms.sdmdigital.id/pluginfile.php/635350/mod_page/content/15/gambar%2016.jpg)
-**Gambar 16. Ilustrasi kedekatan vektor. L2 mengukur jarak langsung antara dua titik yang ditunjuk vektor, L1 mengukur total jarak horizontal dan vertikal antara dua vektor, *Cosine similarity* mengukur kemiripan antara dua vektor berdasarkan cosinus dari sudut di antara keduanya (orange).**
+Untuk model Bigram, rumusnya adalah:
+
+$$P(w_n \mid w_{n-1}) = \frac{C(w_{n-1} w_n)}{C(w_{n-1})}$$
+
+Keterangan rumus:
+*   $C(w_{n-1}, w_n)$ adalah jumlah kemunculan sekuens bigram (misal: "makan nasi") di korpus.
+*   $C(w_{n-1})$ adalah jumlah total kemunculan unigram konteks (misal: "makan") di korpus.
+
+**Contoh untuk Perhitungan MLE:**
+Misalkan kita memiliki korpus mini sbb.:
+1. `<s> saya makan nasi </s>`
+2. `<s> saya makan roti </s>`
+3. `<s> dia makan nasi </s>`
+*(Catatan: `<s>` adalah token "mulai kalimat" dan `</s>` adalah token "akhir kalimat")*
+
+Mari kita hitung probabilitas $P(\{\text{"nasi"}\} \mid \{\text{"makan"}\})$:
+*   $C(\{\text{"makan nasi"}\}) = 2$ kali muncul.
+*   $C(\{\text{"makan"}\}) = 3$ kali muncul.
+*   $P(\{\text{"nasi"}\} \mid \{\text{"makan"}\}) = 2/3 \approx 0.67$
+
+Sedangkan untuk perhitungan $P(\{\text{"roti"}\} \mid \{\text{"makan"}\})$:
+*   $C(\{\text{"makan roti"}\}) = 1$ kali muncul.
+*   $C(\{\text{"makan"}\}) = 3$ kali muncul.
+*   $P(\{\text{"roti"}\} \mid \{\text{"makan"}\}) = 1/3 \approx 0.33$
+
+Model menyimpulkan bahwa jika seseorang 'makan', 67% kemungkinannya adalah 'nasi' dan 33% kemungkinannya adalah 'roti'. Pendekatan MLE ini logis selama n-gram pernah muncul di data latih. Namun, apa yang terjadi ketika kita menanyakan $P(\text{"ayam"} \mid \text{"makan"})$ yang tidak ada di korpus? Formula MLE akan menghasilkan probabilitas 0.
 
 ---
 
-### **1.2.3 Distribusi Peluang dan Proses Sampling**
+#### 2.2.2 Masalah Probabilitas Nol dan Add-1 (Laplace) Smoothing
 
-Distribusi peluang, yang pada umumnya dinotasikan dengan notasi matematis P, adalah sebuah fungsi yang menggambarkan bagaimana kemungkinan setiap hasil dari suatu percobaan acak tersebar. Dalam sebuah distribusi peluang, semua hasil yang mungkin sudah diketahui lebih dahulu, baik berupa rentang nilai untuk distribusi kontinyu maupun himpunan nilai diskrit untuk distribusi diskrit. Distribusi ini menunjukkan seberapa besar peluang masing-masing hasil untuk muncul. Sebagai contoh, ketika melempar sebuah dadu ideal, terdapat enam kemungkinan hasil yang setara, dan setiap sisi memiliki peluang sebesar ⅙ untuk muncul setelah dadu dilempar. Dengan demikian, distribusi peluang memberikan cara untuk memahami dan memodelkan ketidakpastian dari suatu proses acak. Apabila dijumlahkan, peluang semua kemungkinan akan memiliki total 1, yang artinya semua kemungkinan yang terjadi sudah masuk di dalam distribusi peluang.
+Masalah Probabilitas Nol (*Zero Probability Problem*) terjadi ketika model menganggap frasa yang tidak terlihat di korpus sebagai "mustahil". Jika satu saja komponen n-gram memiliki probabilitas 0, maka probabilitas seluruh kalimat akan menjadi 0. Untuk mengatasi ini, kita memerlukan teknik **smoothing.**
 
-Untuk mendapatkan suatu nilai dari distribusi peluang, dilakukan proses yang disebut *sampling*. Proses sampling dapat dipandang sebagai tindakan mengambil contoh acak dari suatu distribusi. Setiap hasil sampling mewakili satu kemungkinan realisasi dari proses acak tersebut. Jika *sampling* dilakukan berkali-kali, kumpulan hasilnya akan membentuk pola yang secara statistik menyerupai bentuk distribusi aslinya. Dengan kata lain, semakin banyak sampel yang diambil, semakin jelas distribusi peluang yang mendasarinya akan tampak.
+> **Apa itu smoothing?**
+> Smoothing adalah sekumpulan teknik statistik yang digunakan untuk "mencadangkan" dan mendistribusikan ulang sebagian kecil dari total massa probabilitas kepada n-gram yang tidak terlihat (*unseen*).
 
-Secara intuitif, proses ini dapat diibaratkan seperti mengambil bola dari sebuah kantong yang berisi bola dengan berbagai warna dalam proporsi tertentu. Setiap kali kita mengambil satu bola, kita sedang melakukan satu kali sampling. Jika kita mengulanginya banyak kali, frekuensi kemunculan setiap warna akan mendekati perbandingan aslinya di dalam kantong.
+**Add-1 (Laplace) Smoothing**
+Teknik ini menambahkan satu hitungan palsu ke setiap n-gram yang mungkin ada di vokabulari. Formula MLE diubah menjadi:
 
-![Ilustrasi proses sampling bola](https://lms.sdmdigital.id/pluginfile.php/635350/mod_page/content/15/gambar%2017.jpg)
-**Gambar 17. Ilustrasi proses *sampling* (mengambil bola) dari sebuah kotak yang sudah diketahui peluang setiap jenis warna yang bisa diambil dari kotak tersebut.**
+$$P_{Laplace}(w_n \mid w_{n-1}) = \frac{C(w_{n-1} w_n) + 1}{C(w_{n-1}) + V}$$
 
-Sampling bisa dilakukan *with replacement* dimana hasil *sampling* dimasukkan kembali ke ruang sampel yang menyebabkan distribusi peluang selalu tetap atau *without replacement* dimana hasil *sampling* tidak dimasukkan kembali ke ruang sampel, sehingga setiap pengambilan sampel akan mengubah distribusi peluangnya.
+Di mana $V$ adalah ukuran vokabulari (jumlah total kata unik).
 
-Konsep sampling sangat penting dalam *machine learning*, karena banyak model yang menghasilkan prediksi sebagai sebuah distribusi peluang atas berbagai kemungkinan. Proses *sampling* dari distribusi inilah yang nantinya menentukan hasil konkret yang dihasilkan model, seperti memilih satu kata dari sekian banyak kata yang mungkin muncul dalam sebuah kalimat.
+**Contoh Perhitungan Add-1:**
+Misalkan Vokabulari kita ($V$) adalah 1000 dan menggunakan korpus sebelumnya:
+*   $P(\{\text{"nasi"}\} \mid \{\text{"makan"}\}) = \frac{2 + 1}{3 + 1000} = \frac{3}{1003} \approx 0.003$
+*   $P(\{\text{"ayam"}\} \mid \{\text{"makan"}\}) = \frac{0 + 1}{3 + 1000} = \frac{1}{1003} \approx 0.001$
 
----
-
-### **Mini Quiz**
-
-*Silakan akses quiz interaktif melalui tautan di bawah ini:*
-
-1. [Quiz 1 - Operasi Matriks](https://app.lumi.education/api/v1/run/UeqTWd/embed)
-2. [Quiz 2 - Kedekatan Vektor](https://app.lumi.education/api/v1/run/mqF0bf/embed)
-3. [Quiz 3 - Distribusi dan Sampling](https://app.lumi.education/api/v1/run/Gmxeam/embed)
+Sekarang, n-gram yang *unseen* memiliki probabilitas non-nol. Namun, Add-1 Smoothing melakukan distorsi besar: n-gram yang terlihat ("nasi") anjlok probabilitasnya dari 67% menjadi 0.3% karena massa probabilitas habis dibagikan ke ribuan kata *unseen* lainnya.
 
 ---
 
-> ***Refleksi Singkat***
-> 
-> Dari semua konsep di atas, coba hubungkan dengan apa yang kalian telah pelajari dalam *Machine Learning* dan *Deep Learning*. Dimanakah setiap konsep di atas digunakan?
+#### 2.2.3 Konsep Advanced Smoothing: Kneser-Ney
+
+Metode state-of-the-art dalam smoothing n-gram klasik adalah **Kneser-Ney Smoothing.** Ia menggunakan prinsip **absolute discounting** dan **Interpolasi** dengan n-gram yang lebih rendah.
+
+**Intuisi Inti Kneser-Ney**
+1.  **Absolute Discounting:** Mengurangi sejumlah kecil nilai absolut (misal, $d=0.7$) dari n-gram yang terlihat: $Count\_KN = Count - d$.
+2.  **Distribusi Cerdas (Continuation Counts):** Memberikan probabilitas lebih tinggi pada kata yang muncul dalam konteks yang beragam. Contoh: Kata "roti" mungkin muncul setelah "makan", "beli", "bakar" (keragaman tinggi), sedangkan "Purnomo" mungkin hampir selalu hanya muncul setelah kata "Budi". KN menganggap "roti" lebih mungkin muncul di konteks baru daripada "Purnomo".
+
+**Implementasi Menggunakan Python `dict`**
+Dictionary adalah struktur data paling efisien untuk menyimpan data N-gram yang bersifat *sparse* (jarang).
+
+```python
+# Setup Data (Korpus)
+bigram_counts = {
+    ("makan", "nasi"): 100,
+    ("makan", "roti"): 50,
+    ("beli", "roti"): 30,
+    ("budi", "purnomo"): 1000
+}
+unigram_counts = {
+    "makan": 150,
+    "beli": 30,
+    "budi": 1000
+}
+d = 0.7  # Nilai diskon
+
+# --- 1. Absolute Discounting ---
+count_seen = bigram_counts.get(("makan", "nasi"), 0)
+prob_seen = (count_seen - d) / unigram_counts.get("makan")
+print(f"Probabilitas (Seen) P('nasi'|'makan'): {prob_seen:.4f}")
+
+# --- 2. Continuation Counts ---
+continuation_counts = {
+    "nasi": 20, "roti": 50, "purnomo": 1
+}
+print(f"\nKeragaman Konteks 'roti': {continuation_counts['roti']}")
+print(f"Keragaman Konteks 'purnomo': {continuation_counts['purnomo']}")
+```
+
+**Implementasi Menggunakan `torch.tensor`**
+Hanya bisa dilakukan jika vokabulari sangat kecil karena pemborosan memori.
+
+```python
+import torch
+
+vocab = ["makan", "nasi", "roti", "beli", "budi", "purnomo"]
+word_to_idx = {word: i for i, word in enumerate(vocab)}
+vocab_size = len(vocab)
+
+bigram_counts = torch.zeros(vocab_size, vocab_size, dtype=torch.float32)
+bigram_counts[word_to_idx["makan"], word_to_idx["nasi"]] = 100
+bigram_counts[word_to_idx["makan"], word_to_idx["roti"]] = 50
+# ... (isi count lainnya)
+
+unigram_counts = bigram_counts.sum(dim=1)
+d = 0.7
+idx_makan = word_to_idx["makan"]
+idx_nasi = word_to_idx["nasi"]
+
+prob_seen = (bigram_counts[idx_makan, idx_nasi] - d) / unigram_counts[idx_makan]
+print(f"Probabilitas (Seen) P('nasi'|'makan'): {prob_seen:.4f}")
+
+continuation_counts = (bigram_counts > 0).sum(dim=0)
+```
+
+**Analisis: Mengapa `dict` Lebih Baik dari `tensor` (Untuk N-gram)**
+*   **Sparsitas:** Jika $V=50,000$, tensor butuh 2.5 Miliar sel. Sebagian besar berisi nol. Ini membuang VRAM secara masif.
+*   **Kesimpulan:** `dict` (Hash Map) tepat untuk N-gram karena hanya menyimpan data non-nol. `tensor` tepat untuk neural network karena *embeddings* bersifat *dense* (padat).
+
+---
+
+### Mini Quiz
+
+*Silakan akses Mini Quiz melalui platform LMS:*
+[Multiple Choice Quiz - Subtopik 2.2](https://lms.sdmdigital.id/h5p/embed.php?url=https%3A%2F%2Flms.sdmdigital.id%2Fpluginfile.php%2F635362%2Fmod_page%2Fcontent%2F44%2Fmultiple-choice-201.h5p)
+
+---
+
+> **Refleksi Singkat**
+> *Kita telah melihat bahwa metode MLE (penghitungan frekuensi) akan memberikan probabilitas 0 untuk n-gram yang tidak terlihat (unseen). Jika sebuah kalimat berisi satu saja n-gram yang memiliki probabilitas 0, berapa probabilitas keseluruhan dari kalimat tersebut? Mengapa masalah "probabilitas nol" ini dianggap fatal?*
