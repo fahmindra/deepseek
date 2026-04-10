@@ -4,65 +4,43 @@ title: lmvr-3
 ---
 # Bab 3: Arsitektur Jaringan Saraf untuk NLP
 
-> 💡 **"Keberhasilan AI modern tidak hanya bergantung pada algoritma, tetapi pada arsitektur yang mendukungnya, yang memungkinkan kita membangun sistem yang dapat memahami dan menghasilkan bahasa manusia dengan akurasi yang luar biasa." — Yann LeCun**
+> **"Keberhasilan AI modern tidak hanya bergantung pada algoritma, tetapi juga pada arsitektur yang mendukungnya, memungkinkan kita membangun sistem yang dapat memahami dan menghasilkan bahasa manusia dengan akurasi yang luar biasa." — Yann LeCun**
 
-> 📘 **Ringkasan Bab:**
-> Bab 3 dari LMVR menggali berbagai arsitektur jaringan saraf yang membentuk tulang punggung pemrosesan bahasa alami (NLP). Bab ini dimulai dengan dasar-dasar jaringan saraf, menjelaskan keterbatasan jaringan feedforward untuk tugas-tugas NLP dan perlunya arsitektur yang lebih canggih seperti Recurrent Neural Networks (RNNs) dan Convolutional Neural Networks (CNNs). Bab ini kemudian mengeksplorasi mekanisme atensi dan Transformers, menyoroti kemampuan mereka untuk menangani ketergantungan jarak jauh dan melakukan penskalaan secara efektif. Model-model canggih seperti BERT dan GPT dibahas, dengan penekanan pada proses pre-training dan fine-tuning-nya, dan bab ini diakhiri dengan model hybrid dan pembelajaran multi-tugas, yang menunjukkan bagaimana penggabungan arsitektur yang berbeda dapat meningkatkan performa. Wawasan praktis di seluruh bab ini memandu pembaca dalam mengimplementasikan model-model ini, memastikan mereka dapat menerapkan teknik-teknik ini dalam tugas-tugas NLP di dunia nyata.
-
----
+Bab 3 dari LMVR menggali berbagai arsitektur jaringan saraf yang menjadi tulang punggung pemrosesan bahasa alami (NLP). Bab ini dimulai dengan dasar-dasar jaringan saraf, menjelaskan keterbatasan jaringan feedforward untuk tugas-tugas NLP dan perlunya arsitektur yang lebih canggih seperti Recurrent Neural Networks (RNN) dan Convolutional Neural Networks (CNN). Bab ini kemudian mengeksplorasi mekanisme atensi dan Transformer, menyoroti kemampuan mereka untuk menangani dependensi jarak jauh dan menskalakan secara efektif. Model-model canggih seperti BERT dan GPT dibahas, dengan penekanan pada proses pra-pelatihan dan penyetelan halus (fine-tuning). Bab ini diakhiri dengan model hibrida dan pembelajaran multi-tugas (multi-task learning), menunjukkan bagaimana penggabungan arsitektur yang berbeda dapat meningkatkan performa.
 
 ## 3.1. Pengantar Jaringan Saraf untuk NLP
 
-Jaringan saraf telah menjadi alat fundamental untuk memproses dan memahami bahasa alami dalam kecerdasan buatan modern. Pada intinya, jaringan saraf dibangun dari neuron (juga dikenal sebagai unit), yang merupakan fungsi matematika yang dirancang untuk mensimulasikan perilaku neuron biologis. Setiap neuron menerima masukan (direpresentasikan sebagai vektor numerik), menerapkan transformasi berbobot, dan melewatkan hasilnya melalui fungsi aktivasi untuk menentukan keluaran. Neuron-neuron ini disusun menjadi lapisan-lapisan—biasanya mencakup lapisan masukan, satu atau lebih lapisan tersembunyi, dan lapisan keluaran—membentuk apa yang dikenal sebagai feedforward neural network (FNN) atau Multi Layer Perceptron (MLP). Meskipun FNN sangat kuat, mereka menghadapi keterbatasan saat diterapkan pada pemrosesan bahasa alami (NLP), terutama karena bahasa secara inheren melibatkan konteks dan urutan, yang tidak dirancang untuk ditangani oleh FNN secara efisien.
+Jaringan saraf telah menjadi alat fundamental untuk memproses dan memahami bahasa alami dalam kecerdasan buatan modern. Pada intinya, jaringan saraf dibangun dari neuron, yang merupakan fungsi matematika yang dirancang untuk mensimulasikan perilaku neuron biologis. Setiap neuron menerima masukan (direpresentasikan sebagai vektor numerik), menerapkan transformasi berbobot, dan melewatkan hasilnya melalui fungsi aktivasi untuk menentukan keluaran. Neuron-neuron ini disusun menjadi lapisan-lapisan—biasanya mencakup lapisan masukan, satu atau lebih lapisan tersembunyi, dan lapisan keluaran—membentuk apa yang dikenal sebagai feedforward neural network (FNN) atau Multi Layer Perceptron (MLP). Meskipun FNN sangat kuat, mereka menghadapi keterbatasan saat diterapkan pada NLP karena bahasa pada dasarnya melibatkan konteks dan urutan, yang tidak dirancang untuk ditangani oleh FNN secara efisien.
 
-![Figure 1: Alat Pembelajaran Interaktif untuk arsitektur FNN atau MLP (https://deeperplayground.org).](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-oLn6fvAtaJcnox1LeTx1-v1.png)
+![Gambar 1: Alat pembelajaran interaktif untuk arsitektur FNN atau MLP (https://deeperplayground.org).](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-oLn6fvAtaJcnox1LeTx1-v1.png)
+**Gambar 1:** Alat pembelajaran interaktif untuk arsitektur FNN atau MLP (https://deeperplayground.org).
 
-FNN atau MLP adalah jenis jaringan saraf tiruan di mana koneksi antar node tidak membentuk siklus. Setiap lapisan terdiri dari neuron, dan setiap neuron terhubung ke setiap neuron di lapisan berikutnya. Dalam lingkungan Deeperplayground, kita dapat bereksperimen dengan data 2D untuk melihat bagaimana MLP mempelajari batas keputusan.
+Dalam FNN, koneksi antar node tidak membentuk siklus. Setiap lapisan terdiri dari neuron, dan setiap neuron terhubung ke setiap neuron di lapisan berikutnya. Selama pelatihan jaringan saraf, proses pembaruan bobot dipandu oleh algoritma optimasi, seperti penurunan gradien (gradient descent), yang bertujuan untuk meminimalkan fungsi kerugian (loss function).
 
-Arsitektur MLP dalam skenario ini dapat direpresentasikan secara matematis pada setiap lapisan $l$ sebagai:
+![Gambar 2: Backpropagation dan penurunan gradien.](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-xnfZc9XDGxcxrWVR8iKl-v1.png)
+**Gambar 2:** Backpropagation dan penurunan gradien.
 
-$$ z^{(l)} = W^{(l)} a^{(l-1)} + b^{(l)} $$
-$$ a^{(l)} = \sigma(z^{(l)}) $$
+Algoritma backpropagation bekerja dengan menghitung gradien dari fungsi kerugian terhadap setiap bobot dan bias dalam jaringan dengan merambatkan kesalahan (error) ke belakang melalui jaringan. Momentum adalah ekstensi dari penurunan gradien yang membantu mempercepat konvergensi dan meratakan proses optimasi. Fungsi aktivasi seperti ReLU umum digunakan karena memperkenalkan non-linearitas tanpa menyebabkan gradien menghilang (vanishing gradient).
 
-Di sini, $W^{(l)}$ mewakili matriks bobot, $b^{(l)}$ adalah vektor bias, $a^{(l-1)}$ adalah aktivasi dari lapisan sebelumnya, dan $\sigma$ adalah fungsi aktivasi (seperti ReLU, sigmoid, atau tanh). Lapisan keluaran biasanya menggunakan fungsi softmax untuk klasifikasi:
+![Gambar 3: Fungsi aktivasi MLP.](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-KCHmcGKFbedy035Cy4vs-v1.png)
+**Gambar 3:** Fungsi aktivasi MLP.
 
-$$ \hat{y}_i = \frac{e^{z_i}}{\sum_j e^{z_j}} $$
+Dalam NLP, bahasa bersifat sekuensial dan sangat bergantung pada konteks. Makna sebuah kata sering berubah berdasarkan kata-kata di sekitarnya. FNN tradisional memperlakukan data masukan sebagai data independen dan statis, sehingga sulit bagi mereka untuk menangkap ketergantungan antar kata dalam suatu urutan.
 
-MLP belajar dengan meminimalkan kerugian cross-entropy:
-
-$$ L(y, \hat{y}) = - \sum_i y_i \log(\hat{y}_i) $$
-
-Untuk meminimalkan kerugian, algoritma gradient descent menghitung gradien fungsi kerugian terhadap setiap bobot dan bias menggunakan algoritma backpropagation. Aturan pembaruan bobot didefinisikan sebagai:
-
-$$ W_{ij}^{(l)} \leftarrow W_{ij}^{(l)} - \eta \frac{\partial L}{\partial W_{ij}^{(l)}} $$
-
-Momentum adalah ekstensi dari gradient descent yang membantu mempercepat konvergensi dengan menambahkan sebagian dari pembaruan sebelumnya ke pembaruan saat ini:
-
-$$ v_{ij}^{(l)} \leftarrow \gamma v_{ij}^{(l)} + \eta \frac{\partial L}{\partial W_{ij}^{(l)}} $$
-$$ W_{ij}^{(l)} \leftarrow W_{ij}^{(l)} - v_{ij}^{(l)} $$
-
-![Figure 2: Backpropagation dan gradient descent.](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-xnfZc9XDGxcxrWVR8iKl-v1.png)
-
-Fungsi aktivasi seperti ReLU sangat penting untuk menangkap non-linearitas. Dropout diterapkan untuk mencegah overfitting dengan mematikan neuron secara acak selama pelatihan. Regularisasi $L_2$ juga digunakan untuk memberikan penalti pada bobot yang terlalu besar.
-
-![Figure 3: Fungsi aktivasi MLP.](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-KCHmcGKFbedy035Cy4vs-v1.png)
-
-Dalam NLP, bahasa bersifat sekuensial. Kata "anjing" dalam "Anjing mengejar kucing" memiliki peran yang berbeda jika urutannya diubah. FNN tradisional kesulitan menangkap ketergantungan urutan ini karena mereka memperlakukan masukan secara independen.
-
-Berikut adalah implementasi MLP sederhana dalam Python menggunakan PyTorch:
+### Contoh Python: Implementasi MLP Sederhana (PyTorch)
 
 ```python
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# Fungsi untuk menghasilkan data sintetis
+# Fungsi untuk menghasilkan dataset sintetis
 def generate_synthetic_data(num_samples, input_size, num_classes):
     inputs = torch.randn(num_samples, input_size)
     targets = torch.randint(0, num_classes, (num_samples,))
     return inputs, targets
 
-# Definisi arsitektur MLP
+# Mendefinisikan arsitektur MLP
 class MLP(nn.Module):
     def __init__(self, input_size, hidden_layers, output_size):
         super(MLP, self).__init__()
@@ -90,7 +68,6 @@ def main():
     
     model = MLP(input_size, hidden_layers, output_size).to(device)
     
-    # Data sintetis
     train_input, train_target = generate_synthetic_data(1000, input_size, output_size)
     test_input, test_target = generate_synthetic_data(200, input_size, output_size)
     
@@ -104,9 +81,8 @@ def main():
         model.train()
         permutation = torch.randperm(train_input.size(0))
         
-        epoch_loss = 0
         for i in range(0, train_input.size(0), batch_size):
-            indices = permutation[i:i + batch_size]
+            indices = permutation[i:i+batch_size]
             batch_x, batch_y = train_input[indices].to(device), train_target[indices].to(device)
             
             optimizer.zero_grad()
@@ -114,63 +90,54 @@ def main():
             loss = criterion(outputs, batch_y)
             loss.backward()
             optimizer.step()
-            epoch_loss += loss.item()
             
         if epoch % 10 == 0:
             model.eval()
             with torch.no_grad():
-                test_outputs = model(test_input.to(device))
-                test_loss = criterion(test_outputs, test_target.to(device))
-                print(f"Epoch: {epoch}, Train Loss: {epoch_loss/(1000/32):.4f}, Test Loss: {test_loss.item():.4f}")
+                train_loss = criterion(model(train_input.to(device)), train_target.to(device))
+                test_loss = criterion(model(test_input.to(device)), test_target.to(device))
+                print(f"Epoch: {epoch}, Train Loss: {train_loss.item():.4f}, Test Loss: {test_loss.item():.4f}")
 
 if __name__ == "__main__":
     main()
 ```
 
----
+## 3.2. Jaringan Saraf Berulang (RNN)
 
-## 3.2. Recurrent Neural Networks (RNNs)
+Recurrent Neural Networks (RNN) telah menjadi landasan arsitektur jaringan saraf untuk pemodelan data sekuensial. Berbeda dengan FNN, RNN memperkenalkan koneksi berulang yang memungkinkan mereka mempertahankan keadaan internal (hidden state) yang berevolusi saat memproses urutan masukan.
 
-Recurrent Neural Networks (RNNs) telah menjadi landasan untuk memodelkan data sekuensial. Berbeda dengan FNN, RNN memperkenalkan koneksi berulang yang memungkinkan mereka mempertahankan status internal (*internal state*).
+![Gambar 4: Sebuah RNN dengan hidden state (Kredit d2l.ai)](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-331xGMO52yVwjmoasF4y-v1.svg)
+**Gambar 4:** Sebuah RNN dengan hidden state (Kredit d2l.ai)
 
-![Figure 4: RNN dengan hidden state (Kredit d2l.ai)](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-331xGMO52yVwjmoasF4y-v1.svg)
-
-Secara matematis, RNN memperbarui *hidden state* $h_t$ pada setiap langkah waktu:
-
+Secara matematis, RNN memperbarui hidden state $h_t$ di setiap langkah waktu:
 $$ h_t = \phi(W_{hh} h_{t-1} + W_{xh} x_t + b_h) $$
 
-Namun, RNN tradisional menderita masalah *vanishing* dan *exploding gradient* selama pelatihan melalui Backpropagation Through Time (BPTT). Untuk mengatasinya, dikembangkan arsitektur seperti Long Short-Term Memory (LSTM) dan Gated Recurrent Units (GRU).
+Kelemahan utama RNN tradisional adalah masalah gradien menghilang (vanishing gradient) saat menangani urutan yang panjang. Untuk mengatasinya, dikembangkan arsitektur seperti Long Short-Term Memory (LSTM) dan Gated Recurrent Units (GRU).
 
-![Figure 5: Sel LSTM dengan hidden state (Kredit d2l.ai).](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-1IxiLdN5eSAQLDIkNVKQ-v1.svg)
+![Gambar 5: Sel LSTM dengan hidden state (Kredit d2l.ai).](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-1IxiLdN5eSAQLDIkNVKQ-v1.svg)
+**Gambar 5:** Sel LSTM dengan hidden state (Kredit d2l.ai).
 
-LSTM menggunakan gerbang (*gates*): *forget gate* ($F_t$), *input gate* ($I_t$), dan *output gate* ($O_t$) untuk mengatur aliran informasi dalam *cell state* ($C_t$).
+LSTM menggunakan mekanisme gerbang (forget, input, output gate) untuk mengatur aliran informasi dalam sel memori. GRU menyederhanakan ini dengan hanya menggunakan gerbang pembaruan (update) dan pengaturan ulang (reset).
 
-![Figure 6: Sel GRU dengan hidden state.](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-ooh1VyRQIMkfQPZgtfx1-v1.svg)
+![Gambar 6: Sel GRU dengan hidden state.](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-ooh1VyRQIMkfQPZgtfx1-v1.svg)
+**Gambar 6:** Sel GRU dengan hidden state.
 
-Berikut adalah implementasi model bahasa tingkat karakter menggunakan LSTM/GRU dalam Python:
+### Contoh Python: Karakter-level Language Model (LSTM/GRU)
 
 ```python
 import torch
 import torch.nn as nn
-import requests
-import os
-
-# Download data Tiny Shakespeare
-URL = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
-if not os.path.exists("input.txt"):
-    data = requests.get(URL).text
-    with open("input.txt", "w") as f:
-        f.write(data)
+import torch.optim as optim
 
 class CharRNN(nn.Module):
-    def __init__(self, vocab_size, hidden_size, n_layers=1, model_type="lstm"):
+    def __init__(self, vocab_size, hidden_size, n_layers=1, model_type='lstm'):
         super(CharRNN, self).__init__()
         self.model_type = model_type
         self.hidden_size = hidden_size
         self.n_layers = n_layers
         
         self.encoder = nn.Embedding(vocab_size, hidden_size)
-        if model_type == "lstm":
+        if model_type == 'lstm':
             self.rnn = nn.LSTM(hidden_size, hidden_size, n_layers, batch_first=True)
         else:
             self.rnn = nn.GRU(hidden_size, hidden_size, n_layers, batch_first=True)
@@ -179,213 +146,220 @@ class CharRNN(nn.Module):
     def forward(self, x, hidden):
         x = self.encoder(x)
         out, hidden = self.rnn(x, hidden)
-        out = self.decoder(out)
+        out = self.decoder(out.reshape(-1, self.hidden_size))
         return out, hidden
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters()).data
-        if self.model_type == "lstm":
-            return (weight.new_zeros(self.n_layers, batch_size, self.hidden_size),
-                    weight.new_zeros(self.n_layers, batch_size, self.hidden_size))
+        if self.model_type == 'lstm':
+            return (weight.new(self.n_layers, batch_size, self.hidden_size).zero_(),
+                    weight.new(self.n_layers, batch_size, self.hidden_size).zero_())
         else:
-            return weight.new_zeros(self.n_layers, batch_size, self.hidden_size)
+            return weight.new(self.n_layers, batch_size, self.hidden_size).zero_()
 
-# (Proses pelatihan disederhanakan untuk contoh)
+# Implementasi pelatihan dan sampling disingkat untuk kejelasan
 ```
 
----
+## 3.3. Convolutional Neural Networks (CNN) untuk NLP
 
-## 3.3. Convolutional Neural Networks (CNNs) untuk NLP
+Convolutional Neural Networks (CNN), yang awalnya dikembangkan untuk pemrosesan gambar, telah diadaptasi untuk berbagai tugas NLP. Dalam NLP, filter CNN meluncur di atas data teks untuk mendeteksi pola lokal seperti n-gram atau frasa pendek.
 
-CNN, yang awalnya untuk pengolahan gambar, telah diadaptasi untuk NLP guna menangkap pola lokal seperti n-gram melalui konvolusi 1D.
+![Gambar 7: Ilustrasi arsitektur CNN untuk tugas NLP (Ref: https://arxiv.org/pdf/1703.03091).](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-NArmtrklkgenplPQj944-v1.png)
+**Gambar 7:** Ilustrasi arsitektur CNN untuk tugas NLP (Ref: https://arxiv.org/pdf/1703.03091).
 
-![Figure 7: Ilustrasi arsitektur CNN untuk tugas NLP (Ref: https://arxiv.org/pdf/1703.03091).](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-NArmtrklkgenplPQj944-v1.png)
-
-Secara matematis, operasi konvolusi 1D dinyatakan sebagai:
+Operasi konvolusi 1D didefinisikan sebagai:
 $$ Y(i) = \sum_{j} K(j) \cdot X(i + j) $$
 
-Berikut adalah implementasi ResNet sederhana untuk klasifikasi gambar (sebagai dasar pemahaman CNN) dalam Python:
+CNN sangat efektif untuk klasifikasi teks karena dapat dengan cepat mengidentifikasi frasa kunci yang bersifat indikatif terhadap suatu kelas melalui lapisan pooling (biasanya max pooling).
+
+### Contoh Python: CNN untuk Klasifikasi Teks (PyTorch)
 
 ```python
-import torch
-import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
+class TextCNN(nn.Module):
+    def __init__(self, vocab_size, embed_dim, n_filters, filter_sizes, output_dim):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embed_dim)
+        self.convs = nn.ModuleList([
+            nn.Conv1d(in_channels=embed_dim, out_channels=n_filters, kernel_size=fs)
+            for fs in filter_sizes
+        ])
+        self.fc = nn.Linear(len(filter_sizes) * n_filters, output_dim)
+        self.dropout = nn.Dropout(0.5)
 
-def main():
-    transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomCrop(32, padding=4),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
-
-    # Menggunakan model ResNet18 standar dari torchvision
-    model = torchvision.models.resnet18(num_classes=10)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
-
-    for epoch in range(1, 11):
-        model.train()
-        running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
-            inputs, labels = data[0].to(device), data[1].to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
-        
-        print(f"Epoch {epoch}, Loss: {running_loss/len(trainloader):.4f}")
-
-if __name__ == "__main__":
-    main()
+    def forward(self, text):
+        # text = [batch size, sent len]
+        embedded = self.embedding(text).permute(0, 2, 1) # [batch size, embed dim, sent len]
+        conved = [torch.relu(conv(embedded)) for conv in self.convs]
+        pooled = [torch.max_pool1d(conv, conv.shape[2]).squeeze(2) for conv in conved]
+        cat = self.dropout(torch.cat(pooled, dim=1))
+        return self.fc(cat)
 ```
 
----
+## 3.4. Mekanisme Atensi dan Transformer
 
-## 3.4. Mekanisme Atensi dan Transformers
+Mekanisme atensi memungkinkan model untuk fokus pada bagian tertentu dari urutan masukan yang paling relevan. Self-attention, landasan model Transformer, memungkinkan setiap token dalam urutan untuk menghadiri (attend) setiap token lainnya.
 
-Mekanisme atensi memungkinkan model untuk memberikan bobot penting yang berbeda pada setiap token dalam urutan. *Self-attention* menghitung skor relevansi menggunakan vektor *Query* ($Q$), *Key* ($K$), dan *Value* ($V$):
+![Gambar 8: Memahami mekanisme self-attention (Kredit: Sebastian Raschka)](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-FKvJ0bEroAvw0XXnnsdW-v1.png)
+**Gambar 8:** Memahami mekanisme self-attention (Kredit: Sebastian Raschka).
 
+Rumus dasar atensi:
 $$ \text{Attention}(Q, K, V) = \text{softmax}\left( \frac{QK^T}{\sqrt{d_k}} \right) V $$
 
-![Figure 8: Memahami mekanisme self-attention (Kredit: Sebastian Raschka)](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-FKvJ0bEroAvw0XXnnsdW-v1.png)
+Arsitektur Transformer terdiri dari encoder dan decoder. Keuntungan utamanya adalah kemampuan untuk memproses urutan secara paralel, berbeda dengan RNN yang memproses secara sekuensial.
 
-Transformer menggunakan arsitektur *encoder-decoder* (atau hanya salah satunya) dan dapat diparalelkan secara efisien, tidak seperti RNN.
+![Gambar 9: Arsitektur Transformer.](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-0fgxigI0qh1xNcSS2A8t-v1.svg)
+**Gambar 9:** Arsitektur Transformer.
 
-![Figure 9: Arsitektur Transformer.](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-0fgxigI0qh1xNcSS2A8t-v1.svg)
+BERT (Bidirectional Encoder Representations from Transformers) adalah model bidirectional yang membaca teks dari dua arah secara bersamaan, sementara GPT adalah model autoregresif yang memprediksi kata berikutnya secara sekuensial.
 
-BERT (*Bidirectional Encoder Representations from Transformers*) adalah model *encoder-only* yang bersifat dua arah, sementara GPT (*Generative Pre-trained Transformer*) adalah model *decoder-only* untuk tugas generatif.
+![Gambar 10: Arsitektur BERT (Bidirectional Encoder Representations from Transformers).](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-45st5xbkWJHjOxPa8aJA-v1.png)
+**Gambar 10:** Arsitektur BERT (Bidirectional Encoder Representations from Transformers).
 
-![Figure 10: Arsitektur BERT.](https://lmvr.rantai.dev/images/L6A504iArDGBvUq8WSeO-45st5xbkWJHjOxPa8aJA-v1.png)
+![Gambar 11: Alat interaktif Dodrio untuk memahami cara kerja multi-head attention.](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-sL9fTWrjmPvOdQzxWVH1-v1.png)
+**Gambar 11:** Alat interaktif Dodrio untuk memahami cara kerja multi-head attention.
 
-Berikut adalah contoh mini-GPT sederhana (causal self-attention) dalam Python:
+![Gambar 12: Alat Transformer Explainer untuk memahami cara kerja transformer bagi model bahasa.](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-E5CxgiT0iCmwBCgtzk9M-v1.png)
+**Gambar 12:** Alat Transformer Explainer untuk memahami cara kerja transformer bagi model bahasa.
+
+### Contoh Python: Implementasi Transformer Sederhana (GPT-like)
 
 ```python
-import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 class CausalSelfAttention(nn.Module):
-    def __init__(self, n_embd, n_head, block_size):
+    def __init__(self, config):
         super().__init__()
-        self.n_head = n_head
-        self.key = nn.Linear(n_embd, n_embd)
-        self.query = nn.Linear(n_embd, n_embd)
-        self.value = nn.Linear(n_embd, n_embd)
-        self.proj = nn.Linear(n_embd, n_embd)
-        self.register_buffer("mask", torch.tril(torch.ones(block_size, block_size))
-                                     .view(1, 1, block_size, block_size))
+        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd)
+        self.n_head = config.n_head
+        self.n_embd = config.n_embd
 
     def forward(self, x):
         B, T, C = x.size()
-        k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        q = self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-
+        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
+        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        
         att = (q @ k.transpose(-2, -1)) * (1.0 / (k.size(-1)**0.5))
-        att = att.masked_fill(self.mask[:,:,:T,:T] == 0, float('-inf'))
+        # Masking untuk causal attention
+        mask = torch.tril(torch.ones(T, T)).view(1, 1, T, T).to(x.device)
+        att = att.masked_fill(mask == 0, float('-inf'))
         att = F.softmax(att, dim=-1)
+        
         y = att @ v
         y = y.transpose(1, 2).contiguous().view(B, T, C)
-        return self.proj(y)
+        return self.c_proj(y)
 ```
 
----
+## 3.5. Arsitektur Canggih: BERT, GPT, dan Seterusnya
 
-## 3.5. Arsitektur Lanjutan: BERT, GPT, dan Lainnya
+Model bahasa pra-terlatih seperti BERT dan GPT telah merevolusi NLP dengan menetapkan paradigma baru dalam cara model dibangun dan diterapkan. Model-model ini dilatih pada korpus teks yang masif dan kemudian disetel halus untuk tugas-tugas tertentu.
 
-Model seperti BERT menggunakan *Masked Language Modeling* (MLM):
-$$P(x_i | X_{-i})$$
-Sedangkan GPT bersifat autoregresif:
-$$ P(x_i | x_1, \dots, x_{i-1}) $$
+![Gambar 13: Ilustrasi arsitektur GPT-2.](https://lmvr.rantai.dev//images/L6A504iArDGBvUq8WSeO-jJj04waaI54uyemzKACD-v1.png)
+**Gambar 13:** Ilustrasi arsitektur GPT-2.
 
-LLaMA (Meta) dan T5 (Google) adalah evolusi lebih lanjut yang menekankan efisiensi skala dan format *text-to-text*.
+BERT menggunakan pendekatan Masked Language Model (MLM), sedangkan GPT menggunakan pendekatan autoregresif. Konsep transfer learning memungkinkan pengetahuan umum yang dipelajari selama pra-pelatihan untuk diadaptasi ke tugas-tugas khusus dengan dataset yang relatif kecil.
 
-Berikut adalah cara menjalankan inferensi LLaMA menggunakan Python dan library `transformers`:
+Evolusi model ini telah melahirkan arsitektur seperti LLaMA (Large Language Model Meta AI), T5 (Text-To-Text Transfer Transformer), dan GPT-3 yang mendorong batas kemampuan pemahaman bahasa manusia.
+
+### Contoh Python: Inferensi LLaMA (Hugging Face Transformers)
 
 ```python
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
-def main():
-    model_id = "meta-llama/Llama-2-7b-hf" # Memerlukan akses di HuggingFace
+def generate_text(prompt, model_id="meta-llama/Llama-2-7b-hf"):
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16, device_map="auto")
-
-    prompt = "My favorite theorem is "
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
     
-    output = model.generate(**inputs, max_new_tokens=50)
-    print(tokenizer.decode(output[0], skip_special_tokens=True))
+    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+    outputs = model.generate(**inputs, max_new_tokens=50)
+    
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-if __name__ == "__main__":
-    main()
+# print(generate_text("The capital of France is"))
 ```
 
----
+## 3.6. Model Hibrida dan Pembelajaran Multi-Tugas
 
-## 3.6. Model Hybrid dan Multi-Task Learning
+Model hibrida menggabungkan arsitektur berbeda untuk menangkap aspek bahasa yang beragam. Misalnya, CNN dapat digunakan untuk menangkap fitur lokal, sementara Transformer menangani konteks global.
 
-Model hybrid menggabungkan kekuatan berbagai arsitektur, misalnya CNN untuk ekstraksi fitur lokal dan Transformer untuk hubungan global. LLaVA adalah contoh model multi-modal yang menggabungkan visi (CLIP) dan bahasa (LLaMA).
+Multi-task learning (MTL) memungkinkan model untuk berbagi representasi di berbagai tugas NLP yang berbeda, yang mengarah pada generalisasi yang lebih baik.
 
-Berikut adalah contoh prapemrosesan gambar untuk model multi-modal (LLaVA) di Python:
+LLaVA (Language and Vision Assistant) adalah contoh model multi-modal yang mengintegrasikan pemahaman bahasa dan gambar secara bersamaan.
+
+### Contoh Python: Preprocessing Gambar LLaVA
 
 ```python
 from PIL import Image
+import torch
 from torchvision import transforms
 
-def preprocess_image(image_path):
-    image = Image.open(image_path).convert("RGB")
-    preprocess = transforms.Compose([
-        transforms.Resize(224),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.481, 0.457, 0.408], std=[0.268, 0.261, 0.275]),
-    ])
-    return preprocess(image).unsqueeze(0) # Tambahkan dimensi batch
-```
+class ImageProcessor:
+    def __init__(self, size=224):
+        self.transform = transforms.Compose([
+            transforms.Resize((size, size)),
+            transforms.CenterCrop(size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.4814, 0.4578, 0.4082], std=[0.2686, 0.2613, 0.2757])
+        ])
 
----
+    def preprocess(self, image_path):
+        image = Image.open(image_path).convert("RGB")
+        return self.transform(image).unsqueeze(0) # [1, 3, 224, 224]
+```
 
 ## 3.7. Eksplanabilitas dan Interpretabilitas Model
 
-Karena model seperti Transformer sering dianggap sebagai "kotak hitam", teknik visualisasi atensi digunakan untuk melihat kata mana yang dianggap penting oleh model.
+Seiring bertambahnya kompleksitas jaringan saraf, kebutuhan untuk memahami bagaimana model sampai pada prediksinya menjadi sangat penting. Teknik yang umum digunakan meliputi visualisasi atensi dan analisis kepentingan fitur (feature importance).
+
+Salah satu metode populer adalah Integrated Gradients yang menghitung kontribusi setiap fitur input terhadap prediksi akhir secara matematis.
+
+### Contoh Python: Ekstraksi Bobot Atensi
 
 ```python
-# Contoh ekstraksi bobot atensi (pseudocode)
-def get_attention_example(model, input_ids):
-    outputs = model(input_ids, output_attentions=True)
-    attentions = outputs.attentions # Daftar tensor atensi per lapisan
-    return attentions[0] # Ambil lapisan pertama
-```
+def get_attention_weights(model, tokenizer, text):
+    inputs = tokenizer(text, return_tensors="pt")
+    outputs = model(**inputs, output_attentions=True)
+    
+    # Mengambil bobot atensi dari lapisan terakhir, head pertama
+    attention = outputs.attentions[-1][0, 0, :, :].detach().cpu().numpy()
+    return attention
 
----
+# Visualisasi dapat dilakukan menggunakan matplotlib atau library heatmap
+```
 
 ## 3.8. Kesimpulan
 
-Bab 3 memberikan gambaran komprehensif tentang arsitektur jaringan saraf untuk NLP, dari prinsip dasar hingga model mutakhir seperti Transformers dan BERT.
+Bab 3 memberikan tinjauan komprehensif tentang arsitektur jaringan saraf untuk NLP, dari prinsip dasar hingga model mutakhir seperti Transformer dan BERT. Penguasaan arsitektur ini sangat penting bagi praktisi AI untuk membangun sistem yang mampu menangani kekayaan dan kompleksitas bahasa manusia.
 
 ### 3.8.1. Pembelajaran Lebih Lanjut dengan GenAI
 
 - Jelaskan keterbatasan FNN dalam menangani data sekuensial.
-- Bandingkan LSTM dan GRU dalam hal mekanisme internal.
-- Bagaimana CNN 1D mengekstrak pola lokal dalam teks?
-- Jelaskan konsep *self-attention* dan cara kerjanya secara matematis.
-- Diskusikan pentingnya *pre-training* pada BERT dan GPT.
+- Bandingkan mekanisme internal antara LSTM dan GRU.
+- Diskusikan peran konvolusi 1D dalam ekstraksi fitur teks.
+- Bedah mekanisme self-attention pada Transformer secara matematis.
+- Analisis perbedaan antara model encoder-only (BERT) dan decoder-only (GPT).
+- Bagaimana transfer learning mengubah lanskap pengembangan aplikasi AI?
+- Apa keuntungan menggunakan model hibrida CNN-Transformer?
+- Jelaskan konsep Integrated Gradients untuk interpretasi model.
+- Diskusikan tantangan dalam menskalakan model bahasa besar.
+- Bagaimana teknik kuantisasi dan distilasi membantu efisiensi model?
 
-### 3.8.2. Praktik Mandiri
+### 3.8.2. Latihan Praktis
 
-- **Latihan 3.1**: Implementasikan RNN dan Transformer sederhana, lalu bandingkan akurasinya pada tugas klasifikasi teks.
-- **Latihan 3.2**: Lakukan *fine-tuning* pada model BERT yang sudah ada untuk tugas analisis sentimen.
-- **Latihan 3.3**: Visualisasikan matriks atensi dari model Transformer untuk kalimat yang berbeda.
-- **Latihan 3.4**: Bangun model *Multi-Task Learning* yang bisa melakukan klasifikasi topik dan analisis sentimen sekaligus.
-- **Latihan 3.5**: Buat model hybrid CNN-LSTM untuk mendeteksi berita palsu.
+#### Latihan Mandiri 3.1: Mengimplementasikan dan Membandingkan RNN dan Transformer
+**Tujuan:** Memahami perbedaan penanganan data sekuensial antara RNN dan Transformer untuk tugas analisis sentimen.
+
+#### Latihan Mandiri 3.2: Penyetelan Halus Model BERT Pra-Terlatih
+**Tujuan:** Mendapatkan pengalaman praktis dalam menyesuaikan model BERT untuk tugas klasifikasi teks spesifik.
+
+#### Latihan Mandiri 3.3: Visualisasi Bobot Atensi dalam Model Transformer
+**Tujuan:** Mengeksplorasi interpretabilitas model dengan memvisualisasikan fokus model pada kata-kata tertentu dalam kalimat.
+
+#### Latihan Mandiri 3.4: Mengimplementasikan Model Multi-Task Learning
+**Tujuan:** Membangun satu model yang dapat melakukan klasifikasi topik dan analisis sentimen secara bersamaan.
+
+#### Latihan Mandiri 3.5: Optimasi Model Hibrida
+**Tujuan:** Menggabungkan kekuatan ekstraksi fitur lokal CNN dengan kemampuan sekuensial RNN atau Transformer.
