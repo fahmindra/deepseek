@@ -1,5 +1,4 @@
 ---
-slug: modul-3-2
-title: modul-3-2
+slug: modul-6-2
+title: modul-6-2
 ---
-
