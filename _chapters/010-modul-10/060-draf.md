@@ -1,4 +1,4 @@
 ---
-slug: modul-9-6
-title: modul-9-6
+slug: modul-10-6
+title: modul-10-6
 ---
