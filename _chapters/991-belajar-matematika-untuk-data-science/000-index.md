@@ -1,4 +1,0 @@
----
-slug: matematika
-layout: part
----
