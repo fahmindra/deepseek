@@ -1,0 +1,11 @@
+---
+slug: modul-2-9
+title: modul-2-9
+---
+
+1. Jurafsky, D., & Martin, J. H. Speech and Language Processing: An Introduction to Natural Language Processing, Computational Linguistics, and Speech Recognition. [https://pages.ucsd.edu/~bakovic/compphon/Jurafsky,%20Martin.-Speech%20and%20Language%20Processing_%20An%20Introduction%20to%20Natural%20Language%20Processing%20(2007).pdf](https://pages.ucsd.edu/~bakovic/compphon/Jurafsky,%20Martin.-Speech%20and%20Language%20Processing_%20An%20Introduction%20to%20Natural%20Language%20Processing%20(2007).pdf)
+2. Raschka, S. (2024). Build a large language model (from scratch). Simon and Schuster. [http://очаково-матвеевское.рф/go/url=https://napoleongames.shop/wp-content/uploads/2023/05/ka----7fo-build-a-large-language-model-209234015-ancby.pdf](http://очаково-матвеевское.рф/go/url=https://napoleongames.shop/wp-content/uploads/2023/05/ka----7fo-build-a-large-language-model-209234015-ancby.pdf)
+3. Xiao, T., & Zhu, J. (2025). Foundations of large language models. arXiv preprint arXiv:2501.09223. [https://arxiv.org/pdf/2501.09223?](https://arxiv.org/pdf/2501.09223?)
+4. Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., ... & Polosukhin, I. (2017). Attention is all you need. Advances in neural information processing systems, 30. [https://arxiv.org/html/1706.03762v7](https://arxiv.org/html/1706.03762v7)
+5. Devlin, J., Chang, M. W., Lee, K., & Toutanova, K. (2019, June). Bert: Pre-training of deep bidirectional transformers for language understanding. In Proceedings of the 2019 conference of the North American chapter of the association for computational linguistics: human language technologies, volume 1 (long and short papers) (pp. 4171-4186). [https://aclanthology.org/N19-1423/](https://aclanthology.org/N19-1423/)
+6. Bahdanau, D., Cho, K., & Bengio, Y. (2014). Neural machine translation by jointly learning to align and translate. *arXiv preprint arXiv:1409.0473*. [https://arxiv.org/pdf/1409.0473](https://arxiv.org/pdf/1409.0473)
