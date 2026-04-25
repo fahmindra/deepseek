@@ -160,13 +160,6 @@ print("Selesai!")
 
 Poin penting di sini adalah `optim="adamw_8bit"`. Optimizer standar (AdamW) menyimpan dua "state" (momentum & variance) untuk setiap parameter dalam 32-bit, yang sangat boros memori. `adamw_8bit` mengompres state ini menjadi 8-bit, memberikan penghematan memori VRAM yang signifikan tanpa penurunan kinerja yang berarti.
 
----
-
-## Mini Quiz
-<iframe src="https://app.lumi.education/api/v1/run/cjz7vR/embed" width="1088" height="720" frameborder="0" allowfullscreen="allowfullscreen" allow="geolocation *; microphone *; camera *; midi *; encrypted-media *" style="width: 100%; height: 376px;"></iframe>
-
----
-
 > **Refleksi Singkat**
 >
 > Kita telah melihat bahwa Unsloth mampu mempercepat pelatihan hingga 2x-5x lipat. Bayangkan Anda adalah seorang AI Engineer freelance. Sebelumnya, untuk melakukan fine-tuning model Llama-3 bagi klien, Anda harus menyewa GPU A100 (mahal) di cloud. Dengan Unsloth, Anda bisa melakukannya di GPU T4 (gratis di Colab atau murah di AWS).

@@ -281,12 +281,6 @@ Perhatikan penggunaan **Pagar Pembatas (`<|im_start|>` & `<|im_end|>`)**. Bagi m
 *   **Masalah "Pencilan" (Outlier):** Panjang Maksimum adalah 1069 token, padahal Rata-rata hanya 191 token. 
 *   **Keputusan:** Seorang AI Engineer yang baik akan melihat angka 95th Percentile (439). Kita bisa dengan aman men-set `max_seq_length = 512`. Kita rela memotong (*truncate*) 5% data terpanjang demi mendapatkan kecepatan pelatihan 2x-3x lipat lebih cepat dan penggunaan memori yang jauh lebih efisien.
 
----
-
-### Mini Quiz
-<iframe src="https://app.lumi.education/api/v1/run/SsYe8k/embed" width="1088" height="720" frameborder="0" allowfullscreen="allowfullscreen" allow="geolocation *; microphone *; camera *; midi *; encrypted-media *" style="width: 100%; height: 263px;"></iframe>
-
----
 
 > **Refleksi Singkat**
 >

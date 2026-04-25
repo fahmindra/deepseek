@@ -106,13 +106,6 @@ Tabel 1 ini meringkas perbedaan antara LoRA, Soft Prompt, Prefix Tuning, dan Ada
 
 Meskipun efektif secara akurasi, kelemahan fundamental berupa latensi inferensi (inference latency) inilah yang membuat metode Adapter tipe Houlsby perlahan ditinggalkan dan digantikan oleh pendekatan LoRA dalam implementasi modern, di mana kecepatan adalah segalanya.
 
----
-
-### Mini Quiz
-
-<iframe src="https://app.lumi.education/api/v1/run/kyn7mL/embed" width="1088" height="720" frameborder="0" allowfullscreen="allowfullscreen" allow="geolocation *; microphone *; camera *; midi *; encrypted-media *" style="width: 100%; height: 441px;"></iframe>
-
----
 
 > **Refleksi Singkat**
 >

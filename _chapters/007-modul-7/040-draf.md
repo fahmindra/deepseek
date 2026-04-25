@@ -166,14 +166,6 @@ Inilah bukti fisik dari konsep "Mixture of Experts". Alih-alih satu blok FFN rak
 
 Ini adalah inovasi spesifik Qwen. Selain ahli-ahli spesialis (0-59) yang dipilih-pilih, ada satu **"Ahli Umum" (Shared Expert)** yang *selalu* aktif untuk setiap token. Ini seperti memiliki "Dokter Umum" yang selalu memeriksa pasien, ditambah dengan "Dokter Spesialis" yang dipanggil oleh Router sesuai kebutuhan. Ini menjaga stabilitas output model.
 
----
-
-## Mini Quiz
-
-<iframe src="https://app.lumi.education/api/v1/run/lAy0dQ/embed" width="1088" height="720" frameborder="0" allowfullscreen="allowfullscreen" allow="geolocation *; microphone *; camera *; midi *; encrypted-media *" style="width: 100%; height: 470px;"></iframe>
-
----
-
 > **Refleksi Singkat**
 >
 > Melalui kode di atas, kita melihat bahwa model MoE seperti Qwen memiliki **60 ahli** (plus shared expert) yang tersimpan di memori. Bayangkan Anda adalah AI Infrastructure Engineer. Meskipun komputasi (FLOPs) model ini ringan karena hanya mengaktifkan sedikit ahli per token, **seluruh 60 ahli tersebut harus tetap "siap sedia"** di VRAM GPU agar bisa dipanggil kapan saja oleh Router.
