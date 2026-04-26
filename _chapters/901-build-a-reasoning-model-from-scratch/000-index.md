@@ -1,4 +1,0 @@
----
-slug: reasoning
-layout: part
----

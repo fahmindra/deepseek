@@ -1,5 +1,0 @@
----
-slug: lmvr
-layout: part
----
-
