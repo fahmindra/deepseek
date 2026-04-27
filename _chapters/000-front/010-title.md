@@ -1,22 +1,9 @@
 ---
 slug: book
-title: Demo Book
-abstract: An example book for showcasing the Jekyll Chapterbook theme.
+title: Matematika
+abstract: Adaptasi Bahasa Indonesia dari Algebrica
 ---
 
-By Jason Grimes
+Algebrica adalah basis pengetahuan matematika yang berfokus pada kejelasan, struktur, dan keterpaduan konsep. Platform ini mencakup bidang inti matematika murni dan terapan seperti aljabar, kalkulus, geometri, trigonometri, dan probabilitas, dengan penyajian yang presisi serta terhubung dalam kerangka logika yang lebih luas.
 
-Copyright &copy; {{"now" | date: "%Y"}} by {{site.author}}.
-
-Last updated: {{ "now" | date: "%B %e, %Y" }}
-
-{% if site.baseurl_canonical %}
-  The latest version of this book can always be found at  
-  <a href="{{site.baseurl_canonical}}{{page.url}}">{{site.baseurl_canonical}}{{page.url}}</a>.
-{% endif %}
-
----
-```
-This file is located at: {{ page.path }}
-```
----
+Setiap materi disusun untuk menyeimbangkan kemudahan pemahaman dan ketelitian, dengan penekanan pada pemahaman mendalam, bukan sekadar jawaban cepat. Definisi dijelaskan dalam konteks, konsep saling dikaitkan, dan hasil diturunkan dari prinsip yang mendasarinya.
