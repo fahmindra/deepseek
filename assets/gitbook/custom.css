@@ -267,3 +267,40 @@
     --c-danger-title: #c00;
     --font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 }
+
+/* ── Syntax highlighting & monospace font ── */
+.markdown-section code,
+.markdown-section pre,
+.markdown-section pre > code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.markdown-section pre {
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+}
+
+.markdown-section :not(pre) > code {
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 3px;
+    padding: 0.2em 0.4em;
+    font-size: 0.9em;
+}
+
+/* Dark mode overrides */
+.book.color-theme-1 .markdown-section pre,
+.book.color-theme-1 .markdown-section :not(pre) > code {
+    background: #2a2018;
+    border-color: #70421480;
+}
+.book.color-theme-2 .markdown-section pre,
+.book.color-theme-2 .markdown-section :not(pre) > code {
+    background: #1c1f2b;
+    border-color: #2d3143;
+}

@@ -1,16 +1,16 @@
 remote_theme: jasongrimes/jekyll-chapterbook
 
-title: Chapter
-longtitle: Chapterbook
+title: Build DeepSeek from Scratch
+longtitle: Build DeepSeek from Scratch — A Hands-on Guide
 author: Fahmi Indra Setiawan
 email: fahmindra@gmail.com
 description: >
-  Book chapter
+  A comprehensive hands-on guide covering every major DeepSeek innovation — from KV Cache and MLA to MoE, MTP, FP8, DSA, mHC, Engram, and the million-token DeepSeek-V4 hybrid attention architecture.
 
 # If baseurl_canonical is set, 
 # a <link rel="canonical"> tag will be added to the head of each page,
 # to disambiguate links for search engines.
-baseurl_canonical: https://fahmindra.github.io/chapter
+baseurl_canonical: https://fahmindra.github.io/deepseek
 
 # A copyright notice will be shown at the bottom of each page,
 # with the current year and the author name.
@@ -39,16 +39,16 @@ bookcrumbs:
 # Links shown above the TOC in the sidebar
 # All "url" variables should have a leading slash.
 sidebar_nav_top:
-- label: Jekyll Chapterbook Theme
+- label: Build DeepSeek from Scratch
   url: /index.html
 
 # Links shown below the TOC in the sidebar
 # All "url" variables should have a leading slash.
 sidebar_nav_bottom:
-- label: Draft outline
-  url: /outline.html
-- label: Fork at GitHub
-  url: https://github.com/fahmindra/chapter/fork
+- label: Source on GitHub
+  url: https://github.com/fahmindra/deepseek
+- label: References
+  url: /references.html
 
 # Navigation shown at the bottom of the page
 # All "url" variables should have a leading slash.
@@ -58,7 +58,7 @@ bottom_nav:
 - label: Book
   url: /book.html
 - label: GitHub
-  url: https://github.com/fahmindra/chapter
+  url: https://github.com/fahmindra/deepseek
 - label: Privacy
   url: /privacy.html
 
@@ -84,7 +84,7 @@ sidebar_toc:
 # Show a link to edit each page on GitHub
 github_edit:
   enabled: true
-  base_url: https://github.com/fahmindra/chapter/edit/master/
+  base_url: https://github.com/fahmindra/deepseek/edit/master/
 
 # Custom CSS
 extra_css:
@@ -143,5 +143,5 @@ kramdown:
   syntax_highlighter:     rouge
   syntax_highlighter_opts:
     guess_lang:           true
-syntax_highlighter_style: colorful
+syntax_highlighter_style: github
 markdown_ext:     markdown,mkdown,mkdn,mkd,md
