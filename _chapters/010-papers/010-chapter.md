@@ -18,31 +18,6 @@ We present DeepSeek-V3, a strong Mixture-of-Experts (MoE) language model with 67
 
 ---
 
-### Contents
-1. [Introduction](#S1)
-2. [Architecture](#S2)
-    - 2.1 [Basic Architecture](#S2.SS1)
-    - 2.2 [Multi-Token Prediction](#S2.SS2)
-3. [Infrastructures](#S3)
-    - 3.1 [Compute Clusters](#S3.SS1)
-    - 3.2 [Training Framework](#S3.SS2)
-    - 3.3 [FP8 Training](#S3.SS3)
-    - 3.4 [Inference and Deployment](#S3.SS4)
-    - 3.5 [Suggestions on Hardware Design](#S3.SS5)
-4. [Pre-Training](#S4)
-    - 4.1 [Data Construction](#S4.SS1)
-    - 4.2 [Hyper-Parameters](#S4.SS2)
-    - 4.3 [Long Context Extension](#S4.SS3)
-    - 4.4 [Evaluations](#S4.SS4)
-    - 4.5 [Discussion](#S4.SS5)
-5. [Post-Training](#S5)
-    - 5.1 [Supervised Fine-Tuning](#S5.SS1)
-    - 5.2 [Reinforcement Learning](#S5.SS2)
-    - 5.3 [Evaluations](#S5.SS3)
-    - 5.4 [Discussion](#S5.SS4)
-6. [Conclusion, Limitations, and Future Directions](#S6)
-
----
 
 ## 1 Introduction
 
