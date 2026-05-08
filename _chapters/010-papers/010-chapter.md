@@ -12,7 +12,9 @@ research@deepseek.com
 
 We present DeepSeek-V3, a strong Mixture-of-Experts (MoE) language model with 671B total parameters with 37B activated for each token. To achieve efficient inference and cost-effective training, DeepSeek-V3 adopts Multi-head Latent Attention (MLA) and DeepSeekMoE architectures, which were thoroughly validated in DeepSeek-V2. Furthermore, DeepSeek-V3 pioneers an auxiliary-loss-free strategy for load balancing and sets a multi-token prediction training objective for stronger performance. We pre-train DeepSeek-V3 on 14.8 trillion diverse and high-quality tokens, followed by Supervised Fine-Tuning and Reinforcement Learning stages to fully harness its capabilities. Comprehensive evaluations reveal that DeepSeek-V3 outperforms other open-source models and achieves performance comparable to leading closed-source models. Despite its excellent performance, DeepSeek-V3 requires only 2.788M H800 GPU hours for its full training. In addition, its training process is remarkably stable. Throughout the entire training process, we did not experience any irrecoverable loss spikes or perform any rollbacks. The model checkpoints are available at [https://github.com/deepseek-ai/DeepSeek-V3](https://github.com/deepseek-ai/DeepSeek-V3).
 
+<!-- NOTE: arXiv frequently blocks image hotlinking. If images fail to load on your live site, download them, put them in your /assets/images/ folder, and update these links. -->
 ![Benchmark performance](https://arxiv.org/html/2412.19437v2/x1.png)  
+
 *Figure 1: Benchmark performance of DeepSeek-V3 and its counterparts.*
 
 ---
@@ -59,6 +61,7 @@ We evaluate DeepSeek-V3 on a comprehensive array of benchmarks. Despite its econ
 | :--- | :---: | :---: | :---: | :---: |
 | in H800 GPU Hours | 2664K | 119K | 5K | 2788K |
 | in USD | $5.328M | $0.238M | $0.01M | $5.576M |
+
 *Table 1: Training costs of DeepSeek-V3, assuming the rental price of H800 is $2 per GPU hour.*
 
 Lastly, we emphasize again the economical training costs of DeepSeek-V3, summarized in Table 1, achieved through our optimized co-design of algorithms, frameworks, and hardware. During the pre-training stage, training DeepSeek-V3 on each trillion tokens requires only 180K H800 GPU hours, i.e., 3.7 days on our cluster with 2048 H800 GPUs. Consequently, our pre-training stage is completed in less than two months and costs 2664K GPU hours. Combined with 119K GPU hours for the context length extension and 5K GPU hours for post-training, DeepSeek-V3 costs only 2.788M GPU hours for its full training. Assuming the rental price of the H800 GPU is $2 per GPU hour, our total training costs amount to only $5.576M. Note that the aforementioned costs include only the official training of DeepSeek-V3, excluding the costs associated with prior research and ablation experiments on architectures, algorithms, or data.
@@ -90,6 +93,7 @@ In the remainder of this paper, we first present a detailed exposition of our De
 We first introduce the basic architecture of DeepSeek-V3, featured by Multi-head Latent Attention (MLA) (DeepSeek-AI, 2024c) for efficient inference and DeepSeekMoE (Dai et al., 2024) for economical training. Then, we present a Multi-Token Prediction (MTP) training objective, which we have observed to enhance the overall performance on evaluation benchmarks. For other minor details not explicitly mentioned, DeepSeek-V3 adheres to the settings of DeepSeek-V2 (DeepSeek-AI, 2024c).
 
 ![Basic architecture of DeepSeek-V3](https://arxiv.org/html/2412.19437v2/x2.png)  
+
 *Figure 2: Illustration of the basic architecture of DeepSeek-V3. Following DeepSeek-V2, we adopt MLA and DeepSeekMoE for efficient inference and economical training.*
 
 ### 2.1 Basic Architecture <a id="S2.SS1"></a>
@@ -101,9 +105,13 @@ The basic architecture of DeepSeek-V3 is still within the Transformer (Vaswani e
 For attention, DeepSeek-V3 adopts the MLA architecture. Let $d$ denote the embedding dimension, $n_{h}$ denote the number of attention heads, $d_{h}$ denote the dimension per head, and $\mathbf{h}_{t}\in\mathbb{R}^{d}$ denote the attention input for the $t$-th token at a given attention layer. The core of MLA is the low-rank joint compression for attention keys and values to reduce Key-Value (KV) cache during inference:
 
 $$\displaystyle\boxed{\mathbf{c}_{t}^{KV}} = W^{DKV}\mathbf{h}_{t}, \eqno(1)$$
+
 $$\displaystyle[\mathbf{k}_{t,1}^{C};\mathbf{k}_{t,2}^{C};...;\mathbf{k}_{t,n_{h}}^{C}]=\mathbf{k}_{t}^{C} = W^{UK}\mathbf{c}_{t}^{KV}, \eqno(2)$$
+
 $$\displaystyle\boxed{\mathbf{k}_{t}^{R}} = \operatorname{RoPE}({W^{KR}}\mathbf{h}_{t}), \eqno(3)$$
+
 $$\displaystyle\mathbf{k}_{t,i} = [\mathbf{k}_{t,i}^{C};\mathbf{k}_{t}^{R}], \eqno(4)$$
+
 $$\displaystyle[\mathbf{v}_{t,1}^{C};\mathbf{v}_{t,2}^{C};...;\mathbf{v}_{t,n_{h}}^{C}]=\mathbf{v}_{t}^{C} = W^{UV}\mathbf{c}_{t}^{KV}, \eqno(5)$$
 
 where $\mathbf{c}_{t}^{KV}\in\mathbb{R}^{d_{c}}$ is the compressed latent vector for keys and values; $d_{c}(\ll d_{h}n_{h})$ indicates the KV compression dimension; $W^{DKV}\in\mathbb{R}^{d_{c}\times d}$ denotes the down-projection matrix; $W^{UK},W^{UV}\in\mathbb{R}^{d_{h}n_{h}\times d_{c}}$ are the up-projection matrices for keys and values, respectively; $W^{KR}\in\mathbb{R}^{d_{h}^{R}\times d}$ is the matrix used to produce the decoupled key that carries Rotary Positional Embedding (RoPE) (Su et al., 2024); $\operatorname{RoPE}(\cdot)$ denotes the operation that applies RoPE matrices; and $[\cdot;\cdot]$ denotes concatenation. Note that for MLA, only the blue-boxed vectors (i.e., $\mathbf{c}_{t}^{KV}$ and $\mathbf{k}_{t}^{R}$) need to be cached during generation, which results in significantly reduced KV cache while maintaining performance comparable to standard Multi-Head Attention (MHA) (Vaswani et al., 2017).
@@ -111,8 +119,11 @@ where $\mathbf{c}_{t}^{KV}\in\mathbb{R}^{d_{c}}$ is the compressed latent vector
 For the attention queries, we also perform a low-rank compression, which can reduce the activation memory during training:
 
 $$\displaystyle\mathbf{c}_{t}^{Q} = W^{DQ}\mathbf{h}_{t}, \eqno(6)$$
+
 $$\displaystyle[\mathbf{q}_{t,1}^{C};\mathbf{q}_{t,2}^{C};...;\mathbf{q}_{t,n_{h}}^{C}]=\mathbf{q}_{t}^{C} = W^{UQ}\mathbf{c}_{t}^{Q}, \eqno(7)$$
+
 $$\displaystyle[\mathbf{q}_{t,1}^{R};\mathbf{q}_{t,2}^{R};...;\mathbf{q}_{t,n_{h}}^{R}]=\mathbf{q}_{t}^{R} = \operatorname{RoPE}({W^{QR}}\mathbf{c}_{t}^{Q}), \eqno(8)$$
+
 $$\displaystyle\mathbf{q}_{t,i} = [\mathbf{q}_{t,i}^{C};\mathbf{q}_{t,i}^{R}], \eqno(9)$$
 
 where $\mathbf{c}_{t}^{Q}\in\mathbb{R}^{d_{c}^{\prime}}$ is the compressed latent vector for queries; $d_{c}^{\prime}(\ll d_{h}n_{h})$ denotes the query compression dimension; $W^{DQ}\in\mathbb{R}^{d_{c}^{\prime}\times d},W^{UQ}\in\mathbb{R}^{d_{h}n_{h}\times d_{c}^{\prime}}$ are the down-projection and up-projection matrices for queries, respectively; and $W^{QR}\in\mathbb{R}^{d_{h}^{R}n_{h}\times d_{c}^{\prime}}$ is the matrix to produce the decoupled queries that carry RoPE.
@@ -120,6 +131,7 @@ where $\mathbf{c}_{t}^{Q}\in\mathbb{R}^{d_{c}^{\prime}}$ is the compressed laten
 Ultimately, the attention queries ($\mathbf{q}_{t,i}$), keys ($\mathbf{k}_{j,i}$), and values ($\mathbf{v}_{j,i}^{C}$) are combined to yield the final attention output $\mathbf{u}_{t}$:
 
 $$\displaystyle\mathbf{o}_{t,i} = \sum_{j=1}^{t}\operatorname{Softmax}_{j}\left(\frac{\mathbf{q}_{t,i}^{T}\mathbf{k}_{j,i}}{\sqrt{d_{h}+d_{h}^{R}}}\right)\mathbf{v}_{j,i}^{C}, \eqno(10)$$
+
 $$\displaystyle\mathbf{u}_{t} = W^{O}[\mathbf{o}_{t,1};\mathbf{o}_{t,2};...;\mathbf{o}_{t,n_{h}}], \eqno(11)$$
 
 where $W^{O}\in\mathbb{R}^{d\times d_{h}n_{h}}$ denotes the output projection matrix.
@@ -130,8 +142,11 @@ where $W^{O}\in\mathbb{R}^{d\times d_{h}n_{h}}$ denotes the output projection ma
 For Feed-Forward Networks (FFNs), DeepSeek-V3 employs the DeepSeekMoE architecture (Dai et al., 2024). Compared with traditional MoE architectures like GShard (Lepikhin et al., 2021), DeepSeekMoE uses finer-grained experts and isolates some experts as shared ones. Let $\mathbf{u}_{t}$ denote the FFN input of the $t$-th token, we compute the FFN output $\mathbf{h}_{t}^{\prime}$ as follows:
 
 $$\displaystyle\mathbf{h}_{t}^{\prime} = \mathbf{u}_{t}+\sum_{i=1}^{N_{s}}{\operatorname{FFN}^{(s)}_{i}\left(\mathbf{u}_{t}\right)}+\sum_{i=1}^{N_{r}}{g_{i,t}\operatorname{FFN}^{(r)}_{i}\left(\mathbf{u}_{t}\right)}, \eqno(12)$$
+
 $$\displaystyle g_{i,t} = \frac{g^{\prime}_{i,t}}{\sum_{j=1}^{N_{r}}g^{\prime}_{j,t}}, \eqno(13)$$
+
 $$\displaystyle g^{\prime}_{i,t} = \begin{cases}s_{i,t},&s_{i,t}\in\operatorname{Topk}(\{s_{j,t}|1\leqslant j\leqslant N_{r}\},K_{r}),\\ 0,&\text{otherwise},\end{cases} \eqno(14)$$
+
 $$\displaystyle s_{i,t} = \operatorname{Sigmoid}\left({\mathbf{u}_{t}}^{T}\mathbf{e}_{i}\right), \eqno(15)$$
 
 where $N_{s}$ and $N_{r}$ denote the numbers of shared experts and routed experts, respectively; $\operatorname{FFN}^{(s)}_{i}(\cdot)$ and $\operatorname{FFN}^{(r)}_{i}(\cdot)$ denote the $i$-th shared expert and the $i$-th routed expert, respectively; $K_{r}$ denotes the number of activated routed experts; $g_{i,t}$ is the gating value for the $i$-th expert; $s_{i,t}$ is the token-to-expert affinity; $\mathbf{e}_{i}$ is the centroid vector of the $i$-th routed expert; and $\operatorname{Topk}(\cdot,K)$ denotes the set comprising $K$ highest scores among the affinity scores calculated for the $t$-th token and all routed experts. Slightly different from DeepSeek-V2, DeepSeek-V3 uses the sigmoid function to compute the affinity scores, and applies a normalization among all selected affinity scores to produce the gating values.
@@ -147,8 +162,11 @@ Note that the bias term is only used for routing. The gating value, which will b
 Although DeepSeek-V3 mainly relies on the auxiliary-loss-free strategy for load balance, to prevent extreme imbalance within any single sequence, we also employ a complementary sequence-wise balance loss:
 
 $$\displaystyle\mathcal{L}_{\mathrm{Bal}} = \alpha\sum_{i=1}^{N_{r}}{f_{i}P_{i}}, \eqno(17)$$
+
 $$\displaystyle f_{i}=\frac{N_{r}}{K_{r}T}\sum_{t=1}^{T}\mathbb{1}\left(s_{i,t}\in\operatorname{Topk}(\{s_{j,t}|1\leqslant j\leqslant N_{r}\},K_{r})\right), \eqno(18)$$
+
 $$\displaystyle s^{\prime}_{i,t} = \frac{s_{i,t}}{\sum_{j=1}^{N_{r}}s_{j,t}}, \eqno(19)$$
+
 $$\displaystyle P_{i} = \frac{1}{T}\sum_{t=1}^{T}{s^{\prime}_{i,t}}, \eqno(20)$$
 
 where the balance factor $\alpha$ is a hyper-parameter, which will be assigned an extremely small value for DeepSeek-V3; $\mathbb{1}(\cdot)$ denotes the indicator function; and $T$ denotes the number of tokens in a sequence. The sequence-wise balance loss encourages the expert load on each sequence to be balanced.
@@ -164,6 +182,7 @@ Due to the effective load balancing strategy, DeepSeek-V3 keeps a good load bala
 Inspired by Gloeckle et al. (2024), we investigate and set a Multi-Token Prediction (MTP) objective for DeepSeek-V3, which extends the prediction scope to multiple future tokens at each position. On the one hand, an MTP objective densifies the training signals and may improve data efficiency. On the other hand, MTP may enable the model to pre-plan its representations for better prediction of future tokens. Figure 3 illustrates our implementation of MTP. Different from Gloeckle et al. (2024), which parallelly predicts $D$ additional tokens using independent output heads, we sequentially predict additional tokens and keep the complete causal chain at each prediction depth. We introduce the details of our MTP implementation in this section.
 
 ![Multi-Token Prediction (MTP) implementation](https://arxiv.org/html/2412.19437v2/x3.png)  
+
 *Figure 3: Illustration of our Multi-Token Prediction (MTP) implementation. We keep the complete causal chain for the prediction of each token at each depth.*
 
 ##### MTP Modules.
@@ -210,6 +229,7 @@ In order to facilitate efficient training of DeepSeek-V3, we implement meticulou
 #### 3.2.1 DualPipe and Computation-Communication Overlap
 
 ![Overlapping strategy](https://arxiv.org/html/2412.19437v2/x4.png)  
+
 *Figure 4: Overlapping strategy for a pair of individual forward and backward chunks (the boundaries of the transformer blocks are not aligned). Orange denotes forward, green denotes "backward for input", blue denotes "backward for weights", purple denotes PP communication, and red denotes barriers. Both all-to-all and PP communication can be fully hidden.*
 
 For DeepSeek-V3, the communication overhead introduced by cross-node expert parallelism results in an inefficient computation-to-communication ratio of approximately 1:1. To tackle this challenge, we design an innovative pipeline parallelism algorithm called DualPipe, which not only accelerates model training by effectively overlapping forward and backward computation-communication phases, but also reduces the pipeline bubbles.
@@ -217,6 +237,7 @@ For DeepSeek-V3, the communication overhead introduced by cross-node expert para
 The key idea of DualPipe is to overlap the computation and communication within a pair of individual forward and backward chunks. To be specific, we divide each chunk into four components: `attention`, `all-to-all dispatch`, `MLP`, and `all-to-all combine`. Specially, for a backward chunk, both `attention` and `MLP` are further split into two parts, `backward for input` and `backward for weights`, like in ZeroBubble (Qi et al., 2023b). In addition, we have a `PP communication` component. As illustrated in Figure 4, for a pair of forward and backward chunks, we rearrange these components and manually adjust the ratio of GPU SMs dedicated to communication versus computation. In this overlapping strategy, we can ensure that both all-to-all and PP communication can be fully hidden during execution. Given the efficient overlapping strategy, the full DualPipe scheduling is illustrated in Figure 5. It employs a bidirectional pipeline scheduling, which feeds micro-batches from both ends of the pipeline simultaneously and a significant portion of communications can be fully overlapped. This overlap also ensures that, as the model further scales up, as long as we maintain a constant computation-to-communication ratio, we can still employ fine-grained experts across nodes while achieving a near-zero all-to-all communication overhead.
 
 ![DualPipe scheduling](https://arxiv.org/html/2412.19437v2/x5.png)  
+
 *Figure 5: Example DualPipe scheduling for 8 PP ranks and 20 micro-batches in two directions. The micro-batches in the reverse direction are symmetric to those in the forward direction, so we omit their batch ID for illustration simplicity. Two cells enclosed by a shared black border have mutually overlapped computation and communication.*
 
 In addition, even in more general scenarios without a heavy communication burden, DualPipe still exhibits efficiency advantages. In Table 2, we summarize the pipeline bubbles and memory usage across different PP methods. As shown in the table, compared with ZB1P (Qi et al., 2023b) and 1F1B (Harlap et al., 2018), DualPipe significantly reduces the pipeline bubbles while only increasing the peak activation memory by $\frac{1}{PP}$ times. Although DualPipe requires keeping two copies of the model parameters, this does not significantly increase the memory consumption since we use a large EP size during training. Compared with Chimera (Li and Hoefler, 2021), DualPipe only requires that the pipeline stages and micro-batches be divisible by 2, without requiring micro-batches to be divisible by pipeline stages. In addition, for DualPipe, neither the bubbles nor activation memory will increase as the number of micro-batches grows.
@@ -226,6 +247,7 @@ In addition, even in more general scenarios without a heavy communication burden
 | 1F1B | $(PP-1)(F+B)$ | $1\times$ | $PP$ |
 | ZB1P | $(PP-1)(F+B-2W)$ | $1\times$ | $PP$ |
 | DualPipe (Ours) | $(\frac{PP}{2}-1)(F\&B+B-3W)$ | $2\times$ | $PP+1$ |
+
 *Table 2: Comparison of pipeline bubbles and memory usage across different pipeline parallel methods. $F$ denotes the execution time of a forward chunk, $B$ denotes the execution time of a full backward chunk, $W$ denotes the execution time of a "backward for weights" chunk, and $F\&B$ denotes the execution time of two mutually overlapped forward and backward chunks.*
 
 #### 3.2.2 Efficient Implementation of Cross-Node All-to-All Communication
@@ -250,6 +272,7 @@ With the DualPipe strategy, we deploy the shallowest layers (including the embed
 ### 3.3 FP8 Training <a id="S3.SS3"></a>
 
 ![FP8 mixed precision framework](https://arxiv.org/html/2412.19437v2/x6.png)  
+
 *Figure 6: The overall mixed precision framework with FP8 data format. For clarification, only the `Linear` operator is illustrated.*
 
 Inspired by recent advances in low-precision training (Peng et al., 2023b; Dettmers et al., 2022; Noune et al., 2022), we propose a fine-grained mixed precision framework utilizing the FP8 data format for training DeepSeek-V3. While low-precision training holds great promise, it is often limited by the presence of outliers in activations, weights, and gradients (Sun et al., 2024; He et al.; Fishman et al., 2024). Although significant progress has been made in inference quantization (Xiao et al., 2023; Frantar et al., 2022), there are relatively few studies demonstrating successful application of low-precision techniques in large-scale language model pre-training (Fishman et al., 2024). To address this challenge and effectively extend the dynamic range of the FP8 format, we introduce a fine-grained quantization strategy: tile-wise grouping with $1\times N_{c}$ elements or block-wise grouping with $N_{c}\times N_{c}$ elements. The associated dequantization overhead is largely mitigated under our increased-precision accumulation process, a critical aspect for achieving accurate FP8 General Matrix Multiplication (GEMM). Moreover, to further reduce memory and communication overhead in MoE training, we cache and dispatch activations in FP8, while storing low-precision optimizer states in BF16. We validate the proposed FP8 mixed precision framework on two model scales similar to DeepSeek-V2-Lite and DeepSeek-V2, training for approximately 1 trillion tokens (see more details in Appendix B.1). Notably, compared with the BF16 baseline, the relative loss error of our FP8-training model remains consistently below 0.25%, a level well within the acceptable range of training randomness.
@@ -263,6 +286,7 @@ Firstly, in order to accelerate model training, the majority of core computation
 Despite the efficiency advantage of the FP8 format, certain operators still require a higher precision due to their sensitivity to low-precision computations. Besides, some low-cost operators can also utilize a higher precision with a negligible overhead to the overall training cost. For this reason, after careful investigations, we maintain the original precision (e.g., BF16 or FP32) for the following components: the embedding module, the output head, MoE gating modules, normalization operators, and attention operators. These targeted retentions of high precision ensure stable training dynamics for DeepSeek-V3. To further guarantee numerical stability, we store the master weights, weight gradients, and optimizer states in higher precision. While these high-precision components incur some memory overheads, their impact can be minimized through efficient sharding across multiple DP ranks in our distributed training system.
 
 ![Fine-grained quantization and accumulation](https://arxiv.org/html/2412.19437v2/x7.png)  
+
 *Figure 7: (a) We propose a fine-grained quantization method to mitigate quantization errors caused by feature outliers; for illustration simplicity, only `Fprop` is illustrated. (b) In conjunction with our quantization strategy, we improve the FP8 GEMM precision by promoting to CUDA Cores at an interval of $N_{C}=128$ elements MMA for the high-precision accumulation.*
 
 #### 3.3.2 Improved Precision from Quantization and Multiplication
@@ -383,6 +407,7 @@ We set the number of Transformer layers to 61 and the hidden dimension to 7168. 
 We employ the AdamW optimizer (Loshchilov and Hutter, 2017) with hyper-parameters set to $\beta_{1}=0.9$, $\beta_{2}=0.95$, and $\mathrm{weight\_decay}=0.1$. We set the maximum sequence length to 4K during pre-training, and pre-train DeepSeek-V3 on 14.8T tokens. As for the learning rate scheduling, we first linearly increase it from 0 to $2.2\times 10^{-4}$ during the first 2K steps. Then, we keep a constant learning rate of $2.2\times 10^{-4}$ until the model consumes 10T training tokens. Subsequently, we gradually decay the learning rate to $2.2\times 10^{-5}$ in 4.3T tokens, following a cosine decay curve. During the training of the final 500B tokens, we keep a constant learning rate of $2.2\times 10^{-5}$ in the first 333B tokens, and switch to another constant learning rate of $7.3\times 10^{-6}$ in the remaining 167B tokens. The gradient clipping norm is set to 1.0. We employ a batch size scheduling strategy, where the batch size is gradually increased from 3072 to 15360 in the training of the first 469B tokens, and then keeps 15360 in the remaining training. We leverage pipeline parallelism to deploy different layers of a model on different GPUs, and for each layer, the routed experts will be uniformly deployed on 64 GPUs belonging to 8 nodes. As for the node-limited routing, each token will be sent to at most 4 nodes (i.e., $M=4$). For auxiliary-loss-free load balancing, we set the bias update speed $\gamma$ to 0.001 for the first 14.3T tokens, and to 0.0 for the remaining 500B tokens. For the balance loss, we set $\alpha$ to 0.0001, just to avoid extreme imbalance within any single sequence. The MTP loss weight $\lambda$ is set to 0.3 for the first 10T tokens, and to 0.1 for the remaining 4.8T tokens.
 
 ![NIAH tests](https://arxiv.org/html/2412.19437v2/x8.png)  
+
 *Figure 8: Evaluation results on the ”Needle In A Haystack” (NIAH) tests. DeepSeek-V3 performs well across all context window lengths up to 128K.*
 
 ### 4.3 Long Context Extension <a id="S4.SS3"></a>
@@ -397,7 +422,7 @@ Through this two-phase extension training, DeepSeek-V3 is capable of handling in
 
 The base model of DeepSeek-V3 is pretrained on a multilingual corpus with English and Chinese constituting the majority, so we evaluate its performance on a series of benchmarks primarily in English and Chinese, as well as on a multilingual benchmark. Our evaluation is based on our internal evaluation framework integrated in our HAI-LLM framework. Considered benchmarks are categorized and listed as follows, where <u>underlined</u> benchmarks are in Chinese and double-underlined benchmarks are multilingual ones:
 
-**Multi-subject multiple-choice** datasets include MMLU (Hendrycks et al., 2020), MMLU-Redux (Gema et al., 2024), MMLU-Pro (Wang et al., 2024b), ==MMMLU== (OpenAI, 2024b), <u>C-Eval</u> (Huang et al., 2023), and <u>CMMLU</u> (Li et al., 2023).
+**Multi-subject multiple-choice** datasets include MMLU (Hendrycks et al., 2020), MMLU-Redux (Gema et al., 2024), MMLU-Pro (Wang et al., 2024b), <mark>MMMLU</mark> (OpenAI, 2024b), <u>C-Eval</u> (Huang et al., 2023), and <u>CMMLU</u> (Li et al., 2023).
 
 **Language understanding and reasoning** datasets include HellaSwag (Zellers et al., 2019), PIQA (Bisk et al., 2020), ARC (Clark et al., 2018), and BigBench Hard (BBH) (Suzgun et al., 2022).
 
@@ -461,6 +486,7 @@ Following our previous work (DeepSeek-AI, 2024b, c), we adopt perplexity-based e
 | CCPM (EM) | 0-shot | **93.0** | 88.5 | 78.6 | 92.0 |
 | **Multilingual** | | | | | |
 | MMMLU-non-English (EM) | 5-shot | 64.0 | 74.8 | 73.8 | **79.4** |
+
 *Table 3: Comparison among DeepSeek-V3-Base and other representative open-source base models. All models are evaluated in our internal framework and share the same evaluation setting. Scores with a gap not exceeding 0.3 are considered to be at the same level. DeepSeek-V3-Base achieves the best performance on most benchmarks, especially on math and code tasks.*
 
 #### 4.4.2 Evaluation Results
@@ -486,6 +512,7 @@ Due to our efficient architectures and comprehensive engineering optimizations, 
 | MBPP (Pass@1) | 3-shot | 35.8 | **36.8** | 61.6 | **62.2** |
 | GSM8K (EM) | 8-shot | 25.4 | **31.4** | 72.3 | **74.0** |
 | MATH (EM) | 4-shot | 10.7 | **12.6** | 38.6 | **39.8** |
+
 *Table 4: Ablation results for the MTP strategy. The MTP strategy consistently enhances the model performance on most of the evaluation benchmarks.*
 
 ### 4.5 Discussion <a id="S4.SS5"></a>
@@ -513,6 +540,7 @@ In Table 5, we show the ablation results for the auxiliary-loss-free balancing s
 | MBPP (Pass@1) | 3-shot | **36.6** | 35.8 | 59.2 | **61.2** |
 | GSM8K (EM) | 8-shot | 27.1 | **29.6** | 70.7 | **74.5** |
 | MATH (EM) | 4-shot | **10.9** | **11.1** | 37.2 | **39.6** |
+
 *Table 5: Ablation results for the auxiliary-loss-free balancing strategy. Compared with the purely auxiliary-loss-based method, the auxiliary-loss-free strategy consistently achieves better model performance on most of the evaluation benchmarks.*
 
 #### 4.5.3 Batch-Wise Load Balance VS. Sequence-Wise Load Balance
@@ -524,6 +552,7 @@ To further investigate the correlation between this flexibility and the advantag
 In addition, although the batch-wise load balancing methods show consistent performance advantages, they also face two potential challenges in efficiency: (1) load imbalance within certain sequences or small batches, and (2) domain-shift-induced load imbalance during inference. The first challenge is naturally addressed by our training framework that uses large-scale expert parallelism and data parallelism, which guarantees a large size of each micro-batch. For the second challenge, we also design and implement an efficient inference framework with redundant expert deployment, as described in Section 3.4, to overcome it.
 
 ![Expert specialization patterns](https://arxiv.org/html/2412.19437v2/x9.png)  
+
 *Figure 9: Expert load of auxiliary-loss-free and auxiliary-loss-based models on three domains in the Pile test set. The auxiliary-loss-free model shows greater expert specialization patterns than the auxiliary-loss-based one. The relative expert load denotes the ratio between the actual expert load and the theoretically balanced expert load. Due to space constraints, we only present the results of two layers as an example, with the results of all layers provided in Appendix C.*
 
 ---
@@ -566,6 +595,7 @@ For questions with free-form ground-truth answers, we rely on the reward model t
 Similar to DeepSeek-V2 (DeepSeek-AI, 2024c), we adopt Group Relative Policy Optimization (GRPO) (Shao et al., 2024), which foregoes the critic model that is typically with the same size as the policy model, and estimates the baseline from group scores instead. Specifically, for each question $q$, GRPO samples a group of outputs $\{o_{1},o_{2},\cdots,o_{G}\}$ from the old policy model $\pi_{\theta_{old}}$ and then optimizes the policy model $\pi_{\theta}$ by maximizing the following objective:
 
 $$\mathcal{J}_{GRPO}(\theta) = \mathbb{E}{[q\sim P(Q),\{o_{i}\}_{i=1}^{G}\sim\pi_{\theta_{old}}(O|q)]} \frac{1}{G}\sum_{i=1}^{G}\left(\min\left(\frac{\pi_{\theta}(o_{i}|q)}{\pi_{\theta_{old}}(o_{i}|q)}A_{i},\text{clip}\left(\frac{\pi_{\theta}(o_{i}|q)}{\pi_{\theta_{old}}(o_{i}|q)},1-\varepsilon,1+\varepsilon\right)A_{i}\right)-\beta\mathbb{D}_{KL}\left(\pi_{\theta}||\pi_{ref}\right)\right), \eqno(26)$$
+
 $$\mathbb{D}_{KL}\left(\pi_{\theta}||\pi_{ref}\right)=\frac{\pi_{ref}(o_{i}|q)}{\pi_{\theta}(o_{i}|q)}-\log\frac{\pi_{ref}(o_{i}|q)}{\pi_{\theta}(o_{i}|q)}-1, \eqno(27)$$
 
 where $\varepsilon$ and $\beta$ are hyper-parameters; $\pi_{ref}$ is the reference model; and $A_{i}$ is the advantage, derived from the rewards $\{r_{1},r_{2},\ldots,r_{G}\}$ corresponding to the outputs within each group:
@@ -615,6 +645,7 @@ For standard benchmarks including MMLU, DROP, GPQA, and SimpleQA, we adopt the e
 | CLUEWSC (EM) | 89.9 | 90.4 | **91.4** | 84.7 | 85.4 | 87.9 | 90.9 |
 | C-Eval (EM) | 78.6 | 79.5 | 86.1 | 61.5 | 76.7 | 76.0 | **86.5** |
 | C-SimpleQA (Correct) | 48.5 | 54.1 | 48.4 | 50.4 | 51.3 | 59.3 | **64.8** |
+
 *Table 6: Comparison between DeepSeek-V3 and other representative chat models. All models are evaluated in a configuration that limits the output length to 8K. Benchmarks containing fewer than 1000 samples are tested multiple times using varying temperature settings to derive robust final results. DeepSeek-V3 stands as the best-performing open-source model, and also exhibits competitive performance against frontier closed-source models.*
 
 #### 5.3.2 Standard Evaluation
@@ -644,6 +675,7 @@ On C-Eval, a representative benchmark for Chinese educational knowledge evaluati
 | GPT-4o-0513 | 80.4 | 51.1 |
 | Claude-Sonnet-3.5-1022 | 85.2 | 52.0 |
 | DeepSeek-V3 | **85.5** | **70.0** |
+
 *Table 7: English open-ended conversation evaluations. For AlpacaEval 2.0, we use the length-controlled win rate as the metric.*
 
 #### 5.3.3 Open-Ended Evaluation
@@ -665,6 +697,7 @@ We compare the judgment ability of DeepSeek-V3 with state-of-the-art models, nam
 | Claude-3.5-sonnet-1022 | 96.4 | 79.7 | 91.1 | 87.6 | 88.7 |
 | DeepSeek-V3 | 96.9 | 79.8 | 87.0 | 84.3 | 87.0 |
 | DeepSeek-V3 (maj@6) | 96.9 | 82.6 | 89.5 | 89.2 | 89.6 |
+
 *Table 8: Performances of GPT-4o, Claude-3.5-sonnet and DeepSeek-V3 on RewardBench.*
 
 ### 5.4 Discussion <a id="S5.SS4"></a>
@@ -681,6 +714,7 @@ Our research suggests that knowledge distillation from reasoning models presents
 | :--- | :---: | :---: | :---: | :---: |
 | DeepSeek-V2.5 Baseline | 31.1 | 718 | 74.6 | 769 |
 | DeepSeek-V2.5 +R1 Distill | 37.4 | 783 | 83.2 | 1510 |
+
 *Table 9: The contribution of distillation from DeepSeek-R1. The evaluation settings of LiveCodeBench and MATH-500 are the same as in Table 6.*
 
 #### 5.4.2 Self-Rewarding
@@ -833,6 +867,7 @@ Dongjie Ji, Jian Liang, Jin Chen, Leyi Xia, Miaojun Wang, Mingming Li, Peng Zhan
 ## Appendix B Ablation Studies for Low-Precision Training <a id="A2"></a>
 
 ![Loss curves comparison](https://arxiv.org/html/2412.19437v2/x10.png)  
+
 *Figure 10: Loss curves comparison between BF16 and FP8 training. Results are smoothed by Exponential Moving Average (EMA) with a coefficient of 0.9.*
 
 ### B.1 FP8 v.s. BF16 Training <a id="A2.SS1"></a>
@@ -848,18 +883,24 @@ Although our tile-wise fine-grained quantization effectively mitigates the error
 We record the expert load of the 16B auxiliary-loss-based baseline and the auxiliary-loss-free model on the Pile test set. The auxiliary-loss-free model tends to have greater expert specialization across all layers, as demonstrated in Figure 11.
 
 ![Layers 1-7](https://arxiv.org/html/2412.19437v2/x11.png)  
+
 *(a) Layers 1-7*
 
 ![Layers 7-13](https://arxiv.org/html/2412.19437v2/x12.png)  
+
 *(b) Layers 7-13*
 
 ![Layers 13-19](https://arxiv.org/html/2412.19437v2/x13.png)  
+
 *(c) Layers 13-19*
 
 ![Layers 19-25](https://arxiv.org/html/2412.19437v2/x14.png)  
+
 *(d) Layers 19-25*
 
 ![Layers 25-27](https://arxiv.org/html/2412.19437v2/x15.png)  
+
 *(e) Layers 25-27*
 
 *Figure 11: Expert load of auxiliary-loss-free and auxiliary-loss-based models on three domains in the Pile test set. The auxiliary-loss-free model shows greater expert specialization patterns than the auxiliary-loss-based one. The relative expert load denotes the ratio between the actual expert load and the theoretically balanced expert load.*
+```
