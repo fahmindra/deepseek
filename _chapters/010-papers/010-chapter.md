@@ -1,4 +1,4 @@
-<!-- ---
+---
 slug: ch-10-1
 title: "DeepSeek-V3 Technical Report"
 layout: chapter
@@ -862,4 +862,4 @@ We record the expert load of the 16B auxiliary-loss-based baseline and the auxil
 ![Layers 25-27](https://arxiv.org/html/2412.19437v2/x15.png)  
 *(e) Layers 25-27*
 
-*Figure 11: Expert load of auxiliary-loss-free and auxiliary-loss-based models on three domains in the Pile test set. The auxiliary-loss-free model shows greater expert specialization patterns than the auxiliary-loss-based one. The relative expert load denotes the ratio between the actual expert load and the theoretically balanced expert load.* -->
+*Figure 11: Expert load of auxiliary-loss-free and auxiliary-loss-based models on three domains in the Pile test set. The auxiliary-loss-free model shows greater expert specialization patterns than the auxiliary-loss-based one. The relative expert load denotes the ratio between the actual expert load and the theoretically balanced expert load.*
