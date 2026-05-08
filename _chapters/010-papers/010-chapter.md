@@ -12,7 +12,6 @@ research@deepseek.com
 
 We present DeepSeek-V3, a strong Mixture-of-Experts (MoE) language model with 671B total parameters with 37B activated for each token. To achieve efficient inference and cost-effective training, DeepSeek-V3 adopts Multi-head Latent Attention (MLA) and DeepSeekMoE architectures, which were thoroughly validated in DeepSeek-V2. Furthermore, DeepSeek-V3 pioneers an auxiliary-loss-free strategy for load balancing and sets a multi-token prediction training objective for stronger performance. We pre-train DeepSeek-V3 on 14.8 trillion diverse and high-quality tokens, followed by Supervised Fine-Tuning and Reinforcement Learning stages to fully harness its capabilities. Comprehensive evaluations reveal that DeepSeek-V3 outperforms other open-source models and achieves performance comparable to leading closed-source models. Despite its excellent performance, DeepSeek-V3 requires only 2.788M H800 GPU hours for its full training. In addition, its training process is remarkably stable. Throughout the entire training process, we did not experience any irrecoverable loss spikes or perform any rollbacks. The model checkpoints are available at [https://github.com/deepseek-ai/DeepSeek-V3](https://github.com/deepseek-ai/DeepSeek-V3).
 
-<!-- NOTE: arXiv frequently blocks image hotlinking. If images fail to load on your live site, download them, put them in your /assets/images/ folder, and update these links. -->
 ![Benchmark performance](https://arxiv.org/html/2412.19437v2/x1.png)  
 
 *Figure 1: Benchmark performance of DeepSeek-V3 and its counterparts.*
@@ -45,7 +44,7 @@ We present DeepSeek-V3, a strong Mixture-of-Experts (MoE) language model with 67
 
 ---
 
-## 1 Introduction <a id="S1"></a>
+## 1 Introduction
 
 In recent years, Large Language Models (LLMs) have been undergoing rapid iteration and evolution (OpenAI, 2024a; Anthropic, 2024; Google, 2024), progressively diminishing the gap towards Artificial General Intelligence (AGI). Beyond closed-source models, open-source models, including DeepSeek series (DeepSeek-AI, 2024b, c; Guo et al., 2024; DeepSeek-AI, 2024a), LLaMA series (Touvron et al., 2023a, b; AI@Meta, 2024a, b), Qwen series (Qwen, 2023, 2024a, b), and Mistral series (Jiang et al., 2023; Mistral, 2024), are also making significant strides, endeavoring to close the gap with their closed-source counterparts. To further push the boundaries of open-source model capabilities, we scale up our models and introduce DeepSeek-V3, a large Mixture-of-Experts (MoE) model with 671B parameters, of which 37B are activated for each token.
 
@@ -88,7 +87,7 @@ In the remainder of this paper, we first present a detailed exposition of our De
 
 ---
 
-## 2 Architecture <a id="S2"></a>
+## 2 Architecture
 
 We first introduce the basic architecture of DeepSeek-V3, featured by Multi-head Latent Attention (MLA) (DeepSeek-AI, 2024c) for efficient inference and DeepSeekMoE (Dai et al., 2024) for economical training. Then, we present a Multi-Token Prediction (MTP) training objective, which we have observed to enhance the overall performance on evaluation benchmarks. For other minor details not explicitly mentioned, DeepSeek-V3 adheres to the settings of DeepSeek-V2 (DeepSeek-AI, 2024c).
 
@@ -96,7 +95,7 @@ We first introduce the basic architecture of DeepSeek-V3, featured by Multi-head
 
 *Figure 2: Illustration of the basic architecture of DeepSeek-V3. Following DeepSeek-V2, we adopt MLA and DeepSeekMoE for efficient inference and economical training.*
 
-### 2.1 Basic Architecture <a id="S2.SS1"></a>
+### 2.1 Basic Architecture
 
 The basic architecture of DeepSeek-V3 is still within the Transformer (Vaswani et al., 2017) framework. For efficient inference and economical training, DeepSeek-V3 also adopts MLA and DeepSeekMoE, which have been thoroughly validated by DeepSeek-V2. Compared with DeepSeek-V2, an exception is that we additionally introduce an auxiliary-loss-free load balancing strategy (Wang et al., 2024a) for DeepSeekMoE to mitigate the performance degradation induced by the effort to ensure load balance. Figure 2 illustrates the basic architecture of DeepSeek-V3, and we will briefly review the details of MLA and DeepSeekMoE in this section.
 
@@ -177,7 +176,7 @@ Like the device-limited routing used by DeepSeek-V2, DeepSeek-V3 also uses a res
 ##### No Token-Dropping.
 Due to the effective load balancing strategy, DeepSeek-V3 keeps a good load balance during its full training. Therefore, DeepSeek-V3 does not drop any tokens during training. In addition, we also implement specific deployment strategies to ensure inference load balance, so DeepSeek-V3 also does not drop tokens during inference.
 
-### 2.2 Multi-Token Prediction <a id="S2.SS2"></a>
+### 2.2 Multi-Token Prediction
 
 Inspired by Gloeckle et al. (2024), we investigate and set a Multi-Token Prediction (MTP) objective for DeepSeek-V3, which extends the prediction scope to multiple future tokens at each position. On the one hand, an MTP objective densifies the training signals and may improve data efficiency. On the other hand, MTP may enable the model to pre-plan its representations for better prediction of future tokens. Figure 3 illustrates our implementation of MTP. Different from Gloeckle et al. (2024), which parallelly predicts $D$ additional tokens using independent output heads, we sequentially predict additional tokens and keep the complete causal chain at each prediction depth. We introduce the details of our MTP implementation in this section.
 
@@ -214,13 +213,13 @@ Our MTP strategy mainly aims to improve the performance of the main model, so du
 
 ---
 
-## 3 Infrastructures <a id="S3"></a>
+## 3 Infrastructures
 
-### 3.1 Compute Clusters <a id="S3.SS1"></a>
+### 3.1 Compute Clusters
 
 DeepSeek-V3 is trained on a cluster equipped with 2048 NVIDIA H800 GPUs. Each node in the H800 cluster contains 8 GPUs connected by NVLink and NVSwitch within nodes. Across different nodes, InfiniBand (IB) interconnects are utilized to facilitate communications.
 
-### 3.2 Training Framework <a id="S3.SS2"></a>
+### 3.2 Training Framework
 
 The training of DeepSeek-V3 is supported by the HAI-LLM framework, an efficient and lightweight training framework crafted by our engineers from the ground up. On the whole, DeepSeek-V3 applies 16-way Pipeline Parallelism (PP) (Qi et al., 2023a), 64-way Expert Parallelism (EP) (Lepikhin et al., 2021) spanning 8 nodes, and ZeRO-1 Data Parallelism (DP) (Rajbhandari et al., 2020).
 
@@ -269,7 +268,7 @@ During training, we preserve the Exponential Moving Average (EMA) of the model p
 ##### Shared Embedding and Output Head for Multi-Token Prediction.
 With the DualPipe strategy, we deploy the shallowest layers (including the embedding layer) and deepest layers (including the output head) of the model on the same PP rank. This arrangement enables the physical sharing of parameters and gradients, of the shared embedding and output head, between the MTP module and the main model. This physical sharing mechanism further enhances our memory efficiency.
 
-### 3.3 FP8 Training <a id="S3.SS3"></a>
+### 3.3 FP8 Training
 
 ![FP8 mixed precision framework](https://arxiv.org/html/2412.19437v2/x6.png)  
 
@@ -330,7 +329,7 @@ As illustrated in Figure 6, the `Wgrad` operation is performed in FP8. To reduce
 ##### Low-Precision Communication.
 Communication bandwidth is a critical bottleneck in the training of MoE models. To alleviate this challenge, we quantize the activation before MoE up-projections into FP8 and then apply `dispatch` components, which is compatible with FP8 `Fprop` in MoE up-projections. Like the inputs of the `Linear` after the attention operator, scaling factors for this activation are integral power of 2. A similar strategy is applied to the activation gradient before MoE down-projections. For both the forward and backward `combine` components, we retain them in BF16 to preserve training precision in critical parts of the training pipeline.
 
-### 3.4 Inference and Deployment <a id="S3.SS4"></a>
+### 3.4 Inference and Deployment
 
 We deploy DeepSeek-V3 on the H800 cluster, where GPUs within each node are interconnected using NVLink, and all GPUs across the cluster are fully interconnected via IB. To simultaneously ensure both the Service-Level Objective (SLO) for online services and high throughput, we employ the following deployment strategy that separates the *prefilling* and *decoding* stages.
 
@@ -352,7 +351,7 @@ Similar to prefilling, we periodically determine the set of redundant experts in
 
 Additionally, to enhance throughput and hide the overhead of all-to-all communication, we are also exploring processing two micro-batches with similar computational workloads simultaneously in the decoding stage. Unlike prefilling, `attention` consumes a larger portion of time in the decoding stage. Therefore, we overlap the `attention` of one micro-batch with the `dispatch+MoE+combine` of another. In the decoding stage, the batch size per expert is relatively small (usually within 256 tokens), and the bottleneck is memory access rather than computation. Since the `MoE` part only needs to load the parameters of one expert, the memory access overhead is minimal, so using fewer SMs will not significantly affect the overall performance. Therefore, to avoid impacting the computation speed of the `attention` part, we can allocate only a small portion of SMs to `dispatch+MoE+combine`.
 
-### 3.5 Suggestions on Hardware Design <a id="S3.SS5"></a>
+### 3.5 Suggestions on Hardware Design
 
 Based on our implementation of the all-to-all communication and FP8 training scheme, we propose the following suggestions on chip design to AI hardware vendors.
 
@@ -384,9 +383,9 @@ The current architecture makes it cumbersome to fuse matrix transposition with G
 
 ---
 
-## 4 Pre-Training <a id="S4"></a>
+## 4 Pre-Training
 
-### 4.1 Data Construction <a id="S4.SS1"></a>
+### 4.1 Data Construction
 
 Compared with DeepSeek-V2, we optimize the pre-training corpus by enhancing the ratio of mathematical and programming samples, while expanding multilingual coverage beyond English and Chinese. Also, our data processing pipeline is refined to minimize redundancy while maintaining corpus diversity. Inspired by Ding et al. (2024), we implement the document packing method for data integrity but do not incorporate cross-sample attention masking during training. Finally, the training corpus for DeepSeek-V3 consists of 14.8T high-quality and diverse tokens in our tokenizer.
 
@@ -398,7 +397,7 @@ This structure is applied at the document level as a part of the pre-packing pro
 
 The tokenizer for DeepSeek-V3 employs Byte-level BPE (Shibata et al., 1999) with an extended vocabulary of 128K tokens. The pretokenizer and training data for our tokenizer are modified to optimize multilingual compression efficiency. In addition, compared with DeepSeek-V2, the new pretokenizer introduces tokens that combine punctuations and line breaks. However, this trick may introduce the token boundary bias (Lundberg, 2023) when the model processes multi-line prompts without terminal line breaks, particularly for few-shot evaluation prompts. To address this issue, we randomly split a certain proportion of such combined tokens during training, which exposes the model to a wider array of special cases and mitigates this bias.
 
-### 4.2 Hyper-Parameters <a id="S4.SS2"></a>
+### 4.2 Hyper-Parameters
 
 ##### Model Hyper-Parameters.
 We set the number of Transformer layers to 61 and the hidden dimension to 7168. All learnable parameters are randomly initialized with a standard deviation of 0.006. In MLA, we set the number of attention heads $n_{h}$ to 128 and the per-head dimension $d_{h}$ to 128. The KV compression dimension $d_{c}$ is set to 512, and the query compression dimension $d_{c}^{\prime}$ is set to 1536. For the decoupled queries and key, we set the per-head dimension $d_{h}^{R}$ to 64. We substitute all FFNs except for the first three layers with MoE layers. Each MoE layer consists of 1 shared expert and 256 routed experts, where the intermediate hidden dimension of each expert is 2048. Among the routed experts, 8 experts will be activated for each token, and each token will be ensured to be sent to at most 4 nodes. The multi-token prediction depth $D$ is set to 1, i.e., besides the exact next token, each token will predict one additional token. As DeepSeek-V2, DeepSeek-V3 also employs additional RMSNorm layers after the compressed latent vectors, and multiplies additional scaling factors at the width bottlenecks. Under this configuration, DeepSeek-V3 comprises 671B total parameters, of which 37B are activated for each token.
@@ -410,37 +409,37 @@ We employ the AdamW optimizer (Loshchilov and Hutter, 2017) with hyper-parameter
 
 *Figure 8: Evaluation results on the ”Needle In A Haystack” (NIAH) tests. DeepSeek-V3 performs well across all context window lengths up to 128K.*
 
-### 4.3 Long Context Extension <a id="S4.SS3"></a>
+### 4.3 Long Context Extension
 
 We adopt a similar approach to DeepSeek-V2 (DeepSeek-AI, 2024c) to enable long context capabilities in DeepSeek-V3. After the pre-training stage, we apply YaRN (Peng et al., 2023a) for context extension and perform two additional training phases, each comprising 1000 steps, to progressively expand the context window from 4K to 32K and then to 128K. The YaRN configuration is consistent with that used in DeepSeek-V2, being applied exclusively to the decoupled shared key $\mathbf{k}^{R}_{t}$. The hyper-parameters remain identical across both phases, with the scale $s=40$, $\alpha=1$, $\beta=32$, and the scaling factor $\sqrt{t}=0.1\ln{s}+1$. In the first phase, the sequence length is set to 32K, and the batch size is 1920. During the second phase, the sequence length is increased to 128K, and the batch size is reduced to 480. The learning rate for both phases is set to $7.3\times 10^{-6}$, matching the final learning rate from the pre-training stage.
 
 Through this two-phase extension training, DeepSeek-V3 is capable of handling inputs up to 128K in length while maintaining strong performance. Figure 8 illustrates that DeepSeek-V3, following supervised fine-tuning, achieves notable performance on the "Needle In A Haystack" (NIAH) test, demonstrating consistent robustness across context window lengths up to 128K.
 
-### 4.4 Evaluations <a id="S4.SS4"></a>
+### 4.4 Evaluations
 
 #### 4.4.1 Evaluation Benchmarks
 
-The base model of DeepSeek-V3 is pretrained on a multilingual corpus with English and Chinese constituting the majority, so we evaluate its performance on a series of benchmarks primarily in English and Chinese, as well as on a multilingual benchmark. Our evaluation is based on our internal evaluation framework integrated in our HAI-LLM framework. Considered benchmarks are categorized and listed as follows, where <u>underlined</u> benchmarks are in Chinese and double-underlined benchmarks are multilingual ones:
+The base model of DeepSeek-V3 is pretrained on a multilingual corpus with English and Chinese constituting the majority, so we evaluate its performance on a series of benchmarks primarily in English and Chinese, as well as on a multilingual benchmark. Our evaluation is based on our internal evaluation framework integrated in our HAI-LLM framework. Considered benchmarks are categorized and listed as follows, where underlined benchmarks are in Chinese and double-underlined benchmarks are multilingual ones:
 
-**Multi-subject multiple-choice** datasets include MMLU (Hendrycks et al., 2020), MMLU-Redux (Gema et al., 2024), MMLU-Pro (Wang et al., 2024b), <mark>MMMLU</mark> (OpenAI, 2024b), <u>C-Eval</u> (Huang et al., 2023), and <u>CMMLU</u> (Li et al., 2023).
+**Multi-subject multiple-choice** datasets include MMLU (Hendrycks et al., 2020), MMLU-Redux (Gema et al., 2024), MMLU-Pro (Wang et al., 2024b), MMMLU (OpenAI, 2024b), C-Eval (Huang et al., 2023), and CMMLU (Li et al., 2023).
 
 **Language understanding and reasoning** datasets include HellaSwag (Zellers et al., 2019), PIQA (Bisk et al., 2020), ARC (Clark et al., 2018), and BigBench Hard (BBH) (Suzgun et al., 2022).
 
 **Closed-book question answering** datasets include TriviaQA (Joshi et al., 2017) and NaturalQuestions (Kwiatkowski et al., 2019).
 
-**Reading comprehension** datasets include RACE Lai et al. (2017), DROP (Dua et al., 2019), <u>C3</u> (Sun et al., 2019a), and <u>CMRC</u> (Cui et al., 2019).
+**Reading comprehension** datasets include RACE Lai et al. (2017), DROP (Dua et al., 2019), C3 (Sun et al., 2019a), and CMRC (Cui et al., 2019).
 
-**Reference disambiguation** datasets include <u>CLUEWSC</u> (Xu et al., 2020) and WinoGrande Sakaguchi et al. (2019).
+**Reference disambiguation** datasets include CLUEWSC (Xu et al., 2020) and WinoGrande Sakaguchi et al. (2019).
 
 **Language modeling** datasets include Pile (Gao et al., 2020).
 
-**Chinese understanding and culture** datasets include <u>CCPM</u> (Li et al., 2021).
+**Chinese understanding and culture** datasets include CCPM (Li et al., 2021).
 
-**Math** datasets include GSM8K (Cobbe et al., 2021), MATH (Hendrycks et al., 2021), MGSM (Shi et al., 2023), and <u>CMath</u> (Wei et al., 2023).
+**Math** datasets include GSM8K (Cobbe et al., 2021), MATH (Hendrycks et al., 2021), MGSM (Shi et al., 2023), and CMath (Wei et al., 2023).
 
 **Code** datasets include HumanEval (Chen et al., 2021), LiveCodeBench-Base (0801-1101) (Jain et al., 2024), MBPP (Austin et al., 2021), and CRUXEval (Gu et al., 2024).
 
-**Standardized exams** include <u>AGIEval</u> (Zhong et al., 2023). Note that AGIEval includes both English and Chinese subsets.
+**Standardized exams** include AGIEval (Zhong et al., 2023). Note that AGIEval includes both English and Chinese subsets.
 
 Following our previous work (DeepSeek-AI, 2024b, c), we adopt perplexity-based evaluation for datasets including HellaSwag, PIQA, WinoGrande, RACE-Middle, RACE-High, MMLU, MMLU-Redux, MMLU-Pro, MMMLU, ARC-Easy, ARC-Challenge, C-Eval, CMMLU, C3, and CCPM, and adopt generation-based evaluation for TriviaQA, NaturalQuestions, DROP, MATH, GSM8K, MGSM, HumanEval, MBPP, LiveCodeBench-Base, CRUXEval, BBH, AGIEval, CLUEWSC, CMRC, and CMath. In addition, we perform language-modeling-based evaluation for Pile-test and use Bits-Per-Byte (BPB) as the metric to guarantee fair comparison among models using different tokenizers.
 
@@ -515,7 +514,7 @@ Due to our efficient architectures and comprehensive engineering optimizations, 
 
 *Table 4: Ablation results for the MTP strategy. The MTP strategy consistently enhances the model performance on most of the evaluation benchmarks.*
 
-### 4.5 Discussion <a id="S4.SS5"></a>
+### 4.5 Discussion
 
 #### 4.5.1 Ablation Studies for Multi-Token Prediction
 
@@ -557,9 +556,9 @@ In addition, although the batch-wise load balancing methods show consistent perf
 
 ---
 
-## 5 Post-Training <a id="S5"></a>
+## 5 Post-Training
 
-### 5.1 Supervised Fine-Tuning <a id="S5.SS1"></a>
+### 5.1 Supervised Fine-Tuning
 
 We curate our instruction-tuning datasets to include 1.5M instances spanning multiple domains, with each domain employing distinct data creation methods tailored to its specific requirements.
 
@@ -578,7 +577,7 @@ For non-reasoning data, such as creative writing, role-play, and simple question
 ##### SFT Settings.
 We fine-tune DeepSeek-V3-Base for two epochs using the SFT dataset, using the cosine decay learning rate scheduling that starts at $5\times 10^{-6}$ and gradually decreases to $1\times 10^{-6}$. During training, each single sequence is packed from multiple samples. However, we adopt a sample masking strategy to ensure that these examples remain isolated and mutually invisible.
 
-### 5.2 Reinforcement Learning <a id="S5.SS2"></a>
+### 5.2 Reinforcement Learning
 
 #### 5.2.1 Reward Model
 
@@ -604,7 +603,7 @@ $$A_{i}=\frac{r_{i}-{\operatorname{mean}(\{r_{1},r_{2},\cdots,r_{G}\})}}{{\opera
 
 We incorporate prompts from diverse domains, such as coding, math, writing, role-playing, and question answering, during the RL process. This approach not only aligns the model more closely with human preferences but also enhances performance on benchmarks, especially in scenarios where available SFT data are limited.
 
-### 5.3 Evaluations <a id="S5.SS3"></a>
+### 5.3 Evaluations
 
 #### 5.3.1 Evaluation Settings
 
@@ -700,7 +699,7 @@ We compare the judgment ability of DeepSeek-V3 with state-of-the-art models, nam
 
 *Table 8: Performances of GPT-4o, Claude-3.5-sonnet and DeepSeek-V3 on RewardBench.*
 
-### 5.4 Discussion <a id="S5.SS4"></a>
+### 5.4 Discussion
 
 #### 5.4.1 Distillation from DeepSeek-R1
 
@@ -727,7 +726,7 @@ Instead of predicting just the next single token, DeepSeek-V3 predicts the next 
 
 ---
 
-## 6 Conclusion, Limitations, and Future Directions <a id="S6"></a>
+## 6 Conclusion, Limitations, and Future Directions
 
 In this paper, we introduce DeepSeek-V3, a large MoE language model with 671B total parameters and 37B activated parameters, trained on 14.8T tokens. In addition to the MLA and DeepSeekMoE architectures, it also pioneers an auxiliary-loss-free strategy for load balancing and sets a multi-token prediction training objective for stronger performance. The training of DeepSeek-V3 is cost-effective due to the support of FP8 training and meticulous engineering optimizations. The post-training also makes a success in distilling the reasoning capability from the DeepSeek-R1 series of models. Comprehensive evaluations demonstrate that DeepSeek-V3 has emerged as the strongest open-source model currently available, and achieves performance comparable to leading closed-source models like GPT-4o and Claude-3.5-Sonnet. Despite its strong performance, it also maintains economical training costs. It requires only 2.788M H800 GPU hours for its full training, including pre-training, context length extension, and post-training.
 
@@ -851,7 +850,7 @@ DeepSeek consistently adheres to the route of open-source models with longtermis
 
 ## Appendix
 
-## Appendix A Contributions and Acknowledgments <a id="A1"></a>
+## Appendix A Contributions and Acknowledgments
 
 **Research & Engineering**
 Aixin Liu, Bing Xue, Bingxuan Wang, Bochao Wu, Chengda Lu, Chenggang Zhao, Chengqi Deng, Chenyu Zhang*, Chong Ruan, Damai Dai, Daya Guo, Dejian Yang, Deli Chen, Erhang Li, Fangyun Lin, Fucong Dai, Fuli Luo*, Guangbo Hao, Guanting Chen, Guowei Li, H. Zhang, Han Bao*, Hanwei Xu, Haocheng Wang*, Haowei Zhang, Honghui Ding, Huajian Xin*, Huazuo Gao, Hui Qu, Jianzhong Guo, Jiashi Li, Jiawei Wang*, Jingchang Chen, Jingyang Yuan, Junjie Qiu, Junlong Li, Junxiao Song, Kai Dong, Kai Hu*, Kaige Gao, Kang Guan, Kexin Huang, Kuai Yu, Lean Wang, Lecong Zhang, Liang Zhao, Litong Wang, Liyue Zhang, Mingchuan Zhang, Minghua Zhang, Minghui Tang, Panpan Huang, Peiyi Wang, Qiancheng Wang, Qihao Zhu, Qinyu Chen, Qiushi Du, Ruiqi Ge, Ruisong Zhang, Ruizhe Pan, Runji Wang, Runxin Xu, Ruoyu Zhang, Shanghao Lu, Shangyan Zhou, Shanhuang Chen, Shengfeng Ye, Shirong Ma, Shiyu Wang, Shuiping Yu, Shunfeng Zhou, Shuting Pan, Tao Yun, Tian Pei, Wangding Zeng, Wanjia Zhao*, Wen Liu, Wenfeng Liang, Wenjun Gao, Wenqin Yu, Wentao Zhang, Xiao Bi, Xiaodong Liu, Xiaohan Wang, Xiaokang Chen, Xiaokang Zhang, Xiaotao Nie, Xin Cheng, Xin Liu, Xin Xie, Xingchao Liu, Xingkai Yu, Xinyu Yang, Xinyuan Li, Xuecheng Su, Xuheng Lin, Y.K. Li, Y.Q. Wang, Y.X. Wei, Yang Zhang, Yanhong Xu, Yao Li, Yao Zhao, Yaofeng Sun, Yaohui Wang, Yi Yu, Yichao Zhang, Yifan Shi, Yiliang Xiong, Ying He, Yishi Piao, Yisong Wang, Yixuan Tan, Yiyang Ma*, Yiyuan Liu, Yongqiang Guo, Yu Wu, Yuan Ou, Yuduan Wang, Yue Gong, Yuheng Zou, Yujia He, Yunfan Xiong, Yuxiang Luo, Yuxiang You, Yuxuan Liu, Yuyang Zhou, Z.F. Wu, Z.Z. Ren, Zehui Ren, Zhangli Sha, Zhe Fu, Zhean Xu, Zhenda Xie, Zhengyan Zhang, Zhewen Hao, Zhibin Gou, Zhicheng Ma, Zhigang Yan, Zhihong Shao, Zhiyu Wu, Zhuoshu Li, Zihui Gu, Zijia Zhu, Zijun Liu*, Zilin Li, Ziwei Xie, Ziyang Song, Ziyi Gao, Zizheng Pan.
@@ -864,21 +863,21 @@ Dongjie Ji, Jian Liang, Jin Chen, Leyi Xia, Miaojun Wang, Mingming Li, Peng Zhan
 
 *Within each role, authors are listed alphabetically by the first name. Names marked with * denote individuals who have departed from our team.*
 
-## Appendix B Ablation Studies for Low-Precision Training <a id="A2"></a>
+## Appendix B Ablation Studies for Low-Precision Training
 
 ![Loss curves comparison](https://arxiv.org/html/2412.19437v2/x10.png)  
 
 *Figure 10: Loss curves comparison between BF16 and FP8 training. Results are smoothed by Exponential Moving Average (EMA) with a coefficient of 0.9.*
 
-### B.1 FP8 v.s. BF16 Training <a id="A2.SS1"></a>
+### B.1 FP8 v.s. BF16 Training
 
 We validate our FP8 mixed precision framework with a comparison to BF16 training on top of two baseline models across different scales. At the small scale, we train a baseline MoE model comprising approximately 16B total parameters on 1.33T tokens. At the large scale, we train a baseline MoE model comprising approximately 230B total parameters on around 0.9T tokens. We show the training curves in Figure 10 and demonstrate that the relative error remains below 0.25% with our high-precision accumulation and fine-grained quantization strategies.
 
-### B.2 Discussion About Block-Wise Quantization <a id="A2.SS2"></a>
+### B.2 Discussion About Block-Wise Quantization
 
 Although our tile-wise fine-grained quantization effectively mitigates the error introduced by feature outliers, it requires different groupings for activation quantization, i.e., `1x128` in forward pass and `128x1` for backward pass. A similar process is also required for the activation gradient. A straightforward strategy is to apply block-wise quantization per `128x128` elements like the way we quantize the model weights. In this way, only transposition is required for backward. Therefore, we conduct an experiment where all tensors associated with `Dgrad` are quantized on a block-wise basis. The results reveal that the `Dgrad` operation which computes the activation gradients and back-propagates to shallow layers in a chain-like manner, is highly sensitive to precision. Specifically, block-wise quantization of activation gradients leads to model divergence on an MoE model comprising approximately 16B total parameters, trained for around 300B tokens. We hypothesize that this sensitivity arises because activation gradients are highly imbalanced among tokens, resulting in token-correlated outliers (Xi et al., 2023). These outliers cannot be effectively managed by a block-wise quantization approach.
 
-## Appendix C Expert Specialization Patterns of the 16B Aux-Loss-Based and Aux-Loss-Free Models <a id="A3"></a>
+## Appendix C Expert Specialization Patterns of the 16B Aux-Loss-Based and Aux-Loss-Free Models
 
 We record the expert load of the 16B auxiliary-loss-based baseline and the auxiliary-loss-free model on the Pile test set. The auxiliary-loss-free model tends to have greater expert specialization across all layers, as demonstrated in Figure 11.
 
@@ -903,4 +902,3 @@ We record the expert load of the 16B auxiliary-loss-based baseline and the auxil
 *(e) Layers 25-27*
 
 *Figure 11: Expert load of auxiliary-loss-free and auxiliary-loss-based models on three domains in the Pile test set. The auxiliary-loss-free model shows greater expert specialization patterns than the auxiliary-loss-based one. The relative expert load denotes the ratio between the actual expert load and the theoretically balanced expert load.*
-```
