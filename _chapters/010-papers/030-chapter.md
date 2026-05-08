@@ -1,4 +1,4 @@
-<!-- ---
+---
 slug: ch-10-3
 title: "Conditional Memory via Scalable Lookup: A New Axis of Sparsity for Large Language Models"
 layout: chapter
@@ -256,4 +256,4 @@ Engram introduces conditional memory as a scalable axis of sparsity. A hybrid Mo
 | 2 | 54 | 'a' | 'A', 'a', '␣a', '␣A', 'á', 'ä', 'ã', ... |
 | 3 | 40 | 'o' | 'O', 'o', '␣o', '␣O', 'ó', 'ö', 'ô', ... |
 | 4 | 35 | 'e' | 'E', 'e', '␣e', '␣E', 'é', 'è', '␣é', ... |
-| 5 | 30 | 'i' | 'I', 'i', '␣I', '␣i', 'í', 'ì', 'î', ... | -->
+| 5 | 30 | 'i' | 'I', 'i', '␣I', '␣i', 'í', 'ì', 'î', ... |
