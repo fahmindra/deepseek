@@ -1,4 +1,4 @@
----
+<!-- ---
 slug: ch-10-4
 title: "mHC: Manifold-Constrained Hyper-Connections"
 layout: chapter
@@ -376,4 +376,4 @@ As a generalized extension of the HC paradigm, *m*HC opens several promising ave
 *Table 5: Detailed Model Specifications and Hyper-parameters. This table presents the architectural configurations for the 3B, 9B, and 27B models based on the DeepSeek-V3 architecture. It outlines the specific hyper-parameters for mHC and HC, including the residual stream expansion and Sinkhorn-Knopp settings, alongside the optimization and training protocols used in the experiments.*
 
 </section>
-</section>
+</section> -->

@@ -1,4 +1,4 @@
----
+<!-- ---
 slug: ch-10-2
 title: "DeepSeek-V3.2: Pushing the Frontier of Open Large Language Models"
 layout: chapter
@@ -247,4 +247,4 @@ Non-thinking mode remains competitive though slightly lower than thinking mode (
 Standard competition rules were followed. IOI utilized a 50-submission strategy. IMO/CMO used a generate-verify-refine loop.
 
 ### Appendix E: Author List
-(Extensive list of researchers across Research & Engineering, Data Annotation, and Business & Compliance teams).
+(Extensive list of researchers across Research & Engineering, Data Annotation, and Business & Compliance teams). -->
