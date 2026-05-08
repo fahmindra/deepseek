@@ -1,4 +1,0 @@
----
-slug: draf
-layout: part
----
