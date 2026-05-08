@@ -103,35 +103,35 @@ The basic architecture of DeepSeek-V3 is still within the Transformer (Vaswani e
 
 For attention, DeepSeek-V3 adopts the MLA architecture. Let $d$ denote the embedding dimension, $n_{h}$ denote the number of attention heads, $d_{h}$ denote the dimension per head, and $\mathbf{h}_{t}\in\mathbb{R}^{d}$ denote the attention input for the $t$-th token at a given attention layer. The core of MLA is the low-rank joint compression for attention keys and values to reduce Key-Value (KV) cache during inference:
 
-$$\displaystyle\boxed{\mathbf{c}_{t}^{KV}} = W^{DKV}\mathbf{h}_{t}, \eqno(1)$$
+$$\displaystyle\boxed{\mathbf{c}_{t}^{KV}} = W^{DKV}\mathbf{h}_{t}, \tag{1}$$
 
-$$\displaystyle[\mathbf{k}_{t,1}^{C};\mathbf{k}_{t,2}^{C};...;\mathbf{k}_{t,n_{h}}^{C}]=\mathbf{k}_{t}^{C} = W^{UK}\mathbf{c}_{t}^{KV}, \eqno(2)$$
+$$\displaystyle[\mathbf{k}_{t,1}^{C};\mathbf{k}_{t,2}^{C};...;\mathbf{k}_{t,n_{h}}^{C}]=\mathbf{k}_{t}^{C} = W^{UK}\mathbf{c}_{t}^{KV}, \tag{2}$$
 
-$$\displaystyle\boxed{\mathbf{k}_{t}^{R}} = \operatorname{RoPE}({W^{KR}}\mathbf{h}_{t}), \eqno(3)$$
+$$\displaystyle\boxed{\mathbf{k}_{t}^{R}} = \operatorname{RoPE}({W^{KR}}\mathbf{h}_{t}), \tag{3}$$
 
-$$\displaystyle\mathbf{k}_{t,i} = [\mathbf{k}_{t,i}^{C};\mathbf{k}_{t}^{R}], \eqno(4)$$
+$$\displaystyle\mathbf{k}_{t,i} = [\mathbf{k}_{t,i}^{C};\mathbf{k}_{t}^{R}], \tag{4}$$
 
-$$\displaystyle[\mathbf{v}_{t,1}^{C};\mathbf{v}_{t,2}^{C};...;\mathbf{v}_{t,n_{h}}^{C}]=\mathbf{v}_{t}^{C} = W^{UV}\mathbf{c}_{t}^{KV}, \eqno(5)$$
+$$\displaystyle[\mathbf{v}_{t,1}^{C};\mathbf{v}_{t,2}^{C};...;\mathbf{v}_{t,n_{h}}^{C}]=\mathbf{v}_{t}^{C} = W^{UV}\mathbf{c}_{t}^{KV}, \tag{5}$$
 
 where $\mathbf{c}_{t}^{KV}\in\mathbb{R}^{d_{c}}$ is the compressed latent vector for keys and values; $d_{c}(\ll d_{h}n_{h})$ indicates the KV compression dimension; $W^{DKV}\in\mathbb{R}^{d_{c}\times d}$ denotes the down-projection matrix; $W^{UK},W^{UV}\in\mathbb{R}^{d_{h}n_{h}\times d_{c}}$ are the up-projection matrices for keys and values, respectively; $W^{KR}\in\mathbb{R}^{d_{h}^{R}\times d}$ is the matrix used to produce the decoupled key that carries Rotary Positional Embedding (RoPE) (Su et al., 2024); $\operatorname{RoPE}(\cdot)$ denotes the operation that applies RoPE matrices; and $[\cdot;\cdot]$ denotes concatenation. Note that for MLA, only the blue-boxed vectors (i.e., $\mathbf{c}_{t}^{KV}$ and $\mathbf{k}_{t}^{R}$) need to be cached during generation, which results in significantly reduced KV cache while maintaining performance comparable to standard Multi-Head Attention (MHA) (Vaswani et al., 2017).
 
 For the attention queries, we also perform a low-rank compression, which can reduce the activation memory during training:
 
-$$\displaystyle\mathbf{c}_{t}^{Q} = W^{DQ}\mathbf{h}_{t}, \eqno(6)$$
+$$\displaystyle\mathbf{c}_{t}^{Q} = W^{DQ}\mathbf{h}_{t}, \tag{6}$$
 
-$$\displaystyle[\mathbf{q}_{t,1}^{C};\mathbf{q}_{t,2}^{C};...;\mathbf{q}_{t,n_{h}}^{C}]=\mathbf{q}_{t}^{C} = W^{UQ}\mathbf{c}_{t}^{Q}, \eqno(7)$$
+$$\displaystyle[\mathbf{q}_{t,1}^{C};\mathbf{q}_{t,2}^{C};...;\mathbf{q}_{t,n_{h}}^{C}]=\mathbf{q}_{t}^{C} = W^{UQ}\mathbf{c}_{t}^{Q}, \tag{7}$$
 
-$$\displaystyle[\mathbf{q}_{t,1}^{R};\mathbf{q}_{t,2}^{R};...;\mathbf{q}_{t,n_{h}}^{R}]=\mathbf{q}_{t}^{R} = \operatorname{RoPE}({W^{QR}}\mathbf{c}_{t}^{Q}), \eqno(8)$$
+$$\displaystyle[\mathbf{q}_{t,1}^{R};\mathbf{q}_{t,2}^{R};...;\mathbf{q}_{t,n_{h}}^{R}]=\mathbf{q}_{t}^{R} = \operatorname{RoPE}({W^{QR}}\mathbf{c}_{t}^{Q}), \tag{8}$$
 
-$$\displaystyle\mathbf{q}_{t,i} = [\mathbf{q}_{t,i}^{C};\mathbf{q}_{t,i}^{R}], \eqno(9)$$
+$$\displaystyle\mathbf{q}_{t,i} = [\mathbf{q}_{t,i}^{C};\mathbf{q}_{t,i}^{R}], \tag{9}$$
 
 where $\mathbf{c}_{t}^{Q}\in\mathbb{R}^{d_{c}^{\prime}}$ is the compressed latent vector for queries; $d_{c}^{\prime}(\ll d_{h}n_{h})$ denotes the query compression dimension; $W^{DQ}\in\mathbb{R}^{d_{c}^{\prime}\times d},W^{UQ}\in\mathbb{R}^{d_{h}n_{h}\times d_{c}^{\prime}}$ are the down-projection and up-projection matrices for queries, respectively; and $W^{QR}\in\mathbb{R}^{d_{h}^{R}n_{h}\times d_{c}^{\prime}}$ is the matrix to produce the decoupled queries that carry RoPE.
 
 Ultimately, the attention queries ($\mathbf{q}_{t,i}$), keys ($\mathbf{k}_{j,i}$), and values ($\mathbf{v}_{j,i}^{C}$) are combined to yield the final attention output $\mathbf{u}_{t}$:
 
-$$\displaystyle\mathbf{o}_{t,i} = \sum_{j=1}^{t}\operatorname{Softmax}_{j}\left(\frac{\mathbf{q}_{t,i}^{T}\mathbf{k}_{j,i}}{\sqrt{d_{h}+d_{h}^{R}}}\right)\mathbf{v}_{j,i}^{C}, \eqno(10)$$
+$$\displaystyle\mathbf{o}_{t,i} = \sum_{j=1}^{t}\operatorname{Softmax}_{j}\left(\frac{\mathbf{q}_{t,i}^{T}\mathbf{k}_{j,i}}{\sqrt{d_{h}+d_{h}^{R}}}\right)\mathbf{v}_{j,i}^{C}, \tag{10}$$
 
-$$\displaystyle\mathbf{u}_{t} = W^{O}[\mathbf{o}_{t,1};\mathbf{o}_{t,2};...;\mathbf{o}_{t,n_{h}}], \eqno(11)$$
+$$\displaystyle\mathbf{u}_{t} = W^{O}[\mathbf{o}_{t,1};\mathbf{o}_{t,2};...;\mathbf{o}_{t,n_{h}}], \tag{11}$$
 
 where $W^{O}\in\mathbb{R}^{d\times d_{h}n_{h}}$ denotes the output projection matrix.
 
@@ -140,33 +140,33 @@ where $W^{O}\in\mathbb{R}^{d\times d_{h}n_{h}}$ denotes the output projection ma
 ##### Basic Architecture of DeepSeekMoE.
 For Feed-Forward Networks (FFNs), DeepSeek-V3 employs the DeepSeekMoE architecture (Dai et al., 2024). Compared with traditional MoE architectures like GShard (Lepikhin et al., 2021), DeepSeekMoE uses finer-grained experts and isolates some experts as shared ones. Let $\mathbf{u}_{t}$ denote the FFN input of the $t$-th token, we compute the FFN output $\mathbf{h}_{t}^{\prime}$ as follows:
 
-$$\displaystyle\mathbf{h}_{t}^{\prime} = \mathbf{u}_{t}+\sum_{i=1}^{N_{s}}{\operatorname{FFN}^{(s)}_{i}\left(\mathbf{u}_{t}\right)}+\sum_{i=1}^{N_{r}}{g_{i,t}\operatorname{FFN}^{(r)}_{i}\left(\mathbf{u}_{t}\right)}, \eqno(12)$$
+$$\displaystyle\mathbf{h}_{t}^{\prime} = \mathbf{u}_{t}+\sum_{i=1}^{N_{s}}{\operatorname{FFN}^{(s)}_{i}\left(\mathbf{u}_{t}\right)}+\sum_{i=1}^{N_{r}}{g_{i,t}\operatorname{FFN}^{(r)}_{i}\left(\mathbf{u}_{t}\right)}, \tag{12}$$
 
-$$\displaystyle g_{i,t} = \frac{g^{\prime}_{i,t}}{\sum_{j=1}^{N_{r}}g^{\prime}_{j,t}}, \eqno(13)$$
+$$\displaystyle g_{i,t} = \frac{g^{\prime}_{i,t}}{\sum_{j=1}^{N_{r}}g^{\prime}_{j,t}}, \tag{13}$$
 
-$$\displaystyle g^{\prime}_{i,t} = \begin{cases}s_{i,t},&s_{i,t}\in\operatorname{Topk}(\{s_{j,t}|1\leqslant j\leqslant N_{r}\},K_{r}),\\ 0,&\text{otherwise},\end{cases} \eqno(14)$$
+$$\displaystyle g^{\prime}_{i,t} = \begin{cases}s_{i,t},&s_{i,t}\in\operatorname{Topk}(\{s_{j,t}|1\leqslant j\leqslant N_{r}\},K_{r}),\\ 0,&\text{otherwise},\end{cases} \tag{14}$$
 
-$$\displaystyle s_{i,t} = \operatorname{Sigmoid}\left({\mathbf{u}_{t}}^{T}\mathbf{e}_{i}\right), \eqno(15)$$
+$$\displaystyle s_{i,t} = \operatorname{Sigmoid}\left({\mathbf{u}_{t}}^{T}\mathbf{e}_{i}\right), \tag{15}$$
 
 where $N_{s}$ and $N_{r}$ denote the numbers of shared experts and routed experts, respectively; $\operatorname{FFN}^{(s)}_{i}(\cdot)$ and $\operatorname{FFN}^{(r)}_{i}(\cdot)$ denote the $i$-th shared expert and the $i$-th routed expert, respectively; $K_{r}$ denotes the number of activated routed experts; $g_{i,t}$ is the gating value for the $i$-th expert; $s_{i,t}$ is the token-to-expert affinity; $\mathbf{e}_{i}$ is the centroid vector of the $i$-th routed expert; and $\operatorname{Topk}(\cdot,K)$ denotes the set comprising $K$ highest scores among the affinity scores calculated for the $t$-th token and all routed experts. Slightly different from DeepSeek-V2, DeepSeek-V3 uses the sigmoid function to compute the affinity scores, and applies a normalization among all selected affinity scores to produce the gating values.
 
 ##### Auxiliary-Loss-Free Load Balancing.
 For MoE models, an unbalanced expert load will lead to routing collapse (Shazeer et al., 2017) and diminish computational efficiency in scenarios with expert parallelism. Conventional solutions usually rely on the auxiliary loss (Fedus et al., 2021; Lepikhin et al., 2021) to avoid unbalanced load. However, too large an auxiliary loss will impair the model performance (Wang et al., 2024a). To achieve a better trade-off between load balance and model performance, we pioneer an auxiliary-loss-free load balancing strategy (Wang et al., 2024a) to ensure load balance. To be specific, we introduce a bias term $b_{i}$ for each expert and add it to the corresponding affinity scores $s_{i,t}$ to determine the top-K routing:
 
-$$\displaystyle g^{\prime}_{i,t} = \begin{cases}s_{i,t},&s_{i,t}+b_{i}\in\operatorname{Topk}(\{s_{j,t}+b_{j}|1\leqslant j\leqslant N_{r}\},K_{r}),\\ 0,&\text{otherwise}.\end{cases} \eqno(16)$$
+$$\displaystyle g^{\prime}_{i,t} = \begin{cases}s_{i,t},&s_{i,t}+b_{i}\in\operatorname{Topk}(\{s_{j,t}+b_{j}|1\leqslant j\leqslant N_{r}\},K_{r}),\\ 0,&\text{otherwise}.\end{cases} \tag{16}$$
 
 Note that the bias term is only used for routing. The gating value, which will be multiplied with the FFN output, is still derived from the original affinity score $s_{i,t}$. During training, we keep monitoring the expert load on the whole batch of each training step. At the end of each step, we will decrease the bias term by $\gamma$ if its corresponding expert is overloaded, and increase it by $\gamma$ if its corresponding expert is underloaded, where $\gamma$ is a hyper-parameter called bias update speed. Through the dynamic adjustment, DeepSeek-V3 keeps balanced expert load during training, and achieves better performance than models that encourage load balance through pure auxiliary losses.
 
 ##### Complementary Sequence-Wise Auxiliary Loss.
 Although DeepSeek-V3 mainly relies on the auxiliary-loss-free strategy for load balance, to prevent extreme imbalance within any single sequence, we also employ a complementary sequence-wise balance loss:
 
-$$\displaystyle\mathcal{L}_{\mathrm{Bal}} = \alpha\sum_{i=1}^{N_{r}}{f_{i}P_{i}}, \eqno(17)$$
+$$\displaystyle\mathcal{L}_{\mathrm{Bal}} = \alpha\sum_{i=1}^{N_{r}}{f_{i}P_{i}}, \tag{17}$$
 
-$$\displaystyle f_{i}=\frac{N_{r}}{K_{r}T}\sum_{t=1}^{T}\mathbb{1}\left(s_{i,t}\in\operatorname{Topk}(\{s_{j,t}|1\leqslant j\leqslant N_{r}\},K_{r})\right), \eqno(18)$$
+$$\displaystyle f_{i}=\frac{N_{r}}{K_{r}T}\sum_{t=1}^{T}\mathbb{1}\left(s_{i,t}\in\operatorname{Topk}(\{s_{j,t}|1\leqslant j\leqslant N_{r}\},K_{r})\right), \tag{18}$$
 
-$$\displaystyle s^{\prime}_{i,t} = \frac{s_{i,t}}{\sum_{j=1}^{N_{r}}s_{j,t}}, \eqno(19)$$
+$$\displaystyle s^{\prime}_{i,t} = \frac{s_{i,t}}{\sum_{j=1}^{N_{r}}s_{j,t}}, \tag{19}$$
 
-$$\displaystyle P_{i} = \frac{1}{T}\sum_{t=1}^{T}{s^{\prime}_{i,t}}, \eqno(20)$$
+$$\displaystyle P_{i} = \frac{1}{T}\sum_{t=1}^{T}{s^{\prime}_{i,t}}, \tag{20}$$
 
 where the balance factor $\alpha$ is a hyper-parameter, which will be assigned an extremely small value for DeepSeek-V3; $\mathbb{1}(\cdot)$ denotes the indicator function; and $T$ denotes the number of tokens in a sequence. The sequence-wise balance loss encourages the expert load on each sequence to be balanced.
 
@@ -187,26 +187,26 @@ Inspired by Gloeckle et al. (2024), we investigate and set a Multi-Token Predict
 ##### MTP Modules.
 To be specific, our MTP implementation uses $D$ sequential modules to predict $D$ additional tokens. The $k$-th MTP module consists of a shared embedding layer $\operatorname{Emb}(\cdot)$, a shared output head $\operatorname{OutHead}(\cdot)$, a Transformer block $\operatorname{TRM}_{k}(\cdot)$, and a projection matrix $M_{k}\in\mathbb{R}^{d\times 2d}$. For the $i$-th input token $t_{i}$, at the $k$-th prediction depth, we first combine the representation of the $i$-th token at the $(k-1)$-th depth $\mathbf{h}_{i}^{k-1}\in\mathbb{R}^{d}$ and the embedding of the $(i+k)$-th token $Emb(t_{i+k})\in\mathbb{R}^{d}$ with the linear projection:
 
-$$\mathbf{h}_{i}^{\prime k}=M_{k}[\operatorname{RMSNorm}(\mathbf{h}_{i}^{k-1});\operatorname{RMSNorm}(\operatorname{Emb}(t_{i+k}))], \eqno(21)$$
+$$\mathbf{h}_{i}^{\prime k}=M_{k}[\operatorname{RMSNorm}(\mathbf{h}_{i}^{k-1});\operatorname{RMSNorm}(\operatorname{Emb}(t_{i+k}))], \tag{21}$$
 
 where $[\cdot;\cdot]$ denotes concatenation. Especially, when $k=1$, $\mathbf{h}_{i}^{k-1}$ refers to the representation given by the main model. Note that for each MTP module, its embedding layer is shared with the main model. The combined $\mathbf{h}_{i}^{\prime k}$ serves as the input of the Transformer block at the $k$-th depth to produce the output representation at the current depth $\mathbf{h}_{i}^{k}$:
 
-$$\mathbf{h}_{1:T-k}^{k}=\operatorname{TRM}_{k}(\mathbf{h}_{1:T-k}^{\prime k}), \eqno(22)$$
+$$\mathbf{h}_{1:T-k}^{k}=\operatorname{TRM}_{k}(\mathbf{h}_{1:T-k}^{\prime k}), \tag{22}$$
 
 where $T$ represents the input sequence length and $i:j$ denotes the slicing operation (inclusive of both the left and right boundaries). Finally, taking $\mathbf{h}_{i}^{k}$ as the input, the shared output head will compute the probability distribution for the $k$-th additional prediction token $P_{i+1+k}^{k}\in\mathbb{R}^{V}$, where $V$ is the vocabulary size:
 
-$$P_{i+k+1}^{k}=\operatorname{OutHead}(\mathbf{h}_{i}^{k}). \eqno(23)$$
+$$P_{i+k+1}^{k}=\operatorname{OutHead}(\mathbf{h}_{i}^{k}). \tag{23}$$
 
 The output head $\operatorname{OutHead}(\cdot)$ linearly maps the representation to logits and subsequently applies the $\operatorname{Softmax}(\cdot)$ function to compute the prediction probabilities of the $k$-th additional token. Also, for each MTP module, its output head is shared with the main model. Our principle of maintaining the causal chain of predictions is similar to that of EAGLE (Li et al., 2024b), but its primary objective is speculative decoding (Xia et al., 2023; Leviathan et al., 2023), whereas we utilize MTP to improve training.
 
 ##### MTP Training Objective.
 For each prediction depth, we compute a cross-entropy loss $\mathcal{L}_{\text{MTP}}^{k}$:
 
-$$\mathcal{L}_{\text{MTP}}^{k}=\operatorname{CrossEntropy}(P_{2+k:T+1}^{k},t_{2+k:T+1})=-\frac{1}{T}\sum_{i=2+k}^{T+1}\log P_{i}^{k}[t_{i}], \eqno(24)$$
+$$\mathcal{L}_{\text{MTP}}^{k}=\operatorname{CrossEntropy}(P_{2+k:T+1}^{k},t_{2+k:T+1})=-\frac{1}{T}\sum_{i=2+k}^{T+1}\log P_{i}^{k}[t_{i}], \tag{24}$$
 
 where $T$ denotes the input sequence length, $t_{i}$ denotes the ground-truth token at the $i$-th position, and $P_{i}^{k}[t_{i}]$ denotes the corresponding prediction probability of $t_{i}$, given by the $k$-th MTP module. Finally, we compute the average of the MTP losses across all depths and multiply it by a weighting factor $\lambda$ to obtain the overall MTP loss $\mathcal{L}_{\text{MTP}}$, which serves as an additional training objective for DeepSeek-V3:
 
-$$\mathcal{L}_{\text{MTP}}=\frac{\lambda}{D}\sum_{k=1}^{D}\mathcal{L}_{\text{MTP}}^{k}. \eqno(25)$$
+$$\mathcal{L}_{\text{MTP}}=\frac{\lambda}{D}\sum_{k=1}^{D}\mathcal{L}_{\text{MTP}}^{k}. \tag{25}$$
 
 ##### MTP in Inference.
 Our MTP strategy mainly aims to improve the performance of the main model, so during inference, we can directly discard the MTP modules and the main model can function independently and normally. Additionally, we can also repurpose these MTP modules for speculative decoding to further improve the generation latency.
@@ -593,13 +593,13 @@ For questions with free-form ground-truth answers, we rely on the reward model t
 
 Similar to DeepSeek-V2 (DeepSeek-AI, 2024c), we adopt Group Relative Policy Optimization (GRPO) (Shao et al., 2024), which foregoes the critic model that is typically with the same size as the policy model, and estimates the baseline from group scores instead. Specifically, for each question $q$, GRPO samples a group of outputs $\{o_{1},o_{2},\cdots,o_{G}\}$ from the old policy model $\pi_{\theta_{old}}$ and then optimizes the policy model $\pi_{\theta}$ by maximizing the following objective:
 
-$$\mathcal{J}_{GRPO}(\theta) = \mathbb{E}{[q\sim P(Q),\{o_{i}\}_{i=1}^{G}\sim\pi_{\theta_{old}}(O|q)]} \frac{1}{G}\sum_{i=1}^{G}\left(\min\left(\frac{\pi_{\theta}(o_{i}|q)}{\pi_{\theta_{old}}(o_{i}|q)}A_{i},\text{clip}\left(\frac{\pi_{\theta}(o_{i}|q)}{\pi_{\theta_{old}}(o_{i}|q)},1-\varepsilon,1+\varepsilon\right)A_{i}\right)-\beta\mathbb{D}_{KL}\left(\pi_{\theta}||\pi_{ref}\right)\right), \eqno(26)$$
+$$\mathcal{J}_{GRPO}(\theta) = \mathbb{E}{[q\sim P(Q),\{o_{i}\}_{i=1}^{G}\sim\pi_{\theta_{old}}(O|q)]} \frac{1}{G}\sum_{i=1}^{G}\left(\min\left(\frac{\pi_{\theta}(o_{i}|q)}{\pi_{\theta_{old}}(o_{i}|q)}A_{i},\text{clip}\left(\frac{\pi_{\theta}(o_{i}|q)}{\pi_{\theta_{old}}(o_{i}|q)},1-\varepsilon,1+\varepsilon\right)A_{i}\right)-\beta\mathbb{D}_{KL}\left(\pi_{\theta}||\pi_{ref}\right)\right), \tag{26}$$
 
-$$\mathbb{D}_{KL}\left(\pi_{\theta}||\pi_{ref}\right)=\frac{\pi_{ref}(o_{i}|q)}{\pi_{\theta}(o_{i}|q)}-\log\frac{\pi_{ref}(o_{i}|q)}{\pi_{\theta}(o_{i}|q)}-1, \eqno(27)$$
+$$\mathbb{D}_{KL}\left(\pi_{\theta}||\pi_{ref}\right)=\frac{\pi_{ref}(o_{i}|q)}{\pi_{\theta}(o_{i}|q)}-\log\frac{\pi_{ref}(o_{i}|q)}{\pi_{\theta}(o_{i}|q)}-1, \tag{27}$$
 
 where $\varepsilon$ and $\beta$ are hyper-parameters; $\pi_{ref}$ is the reference model; and $A_{i}$ is the advantage, derived from the rewards $\{r_{1},r_{2},\ldots,r_{G}\}$ corresponding to the outputs within each group:
 
-$$A_{i}=\frac{r_{i}-{\operatorname{mean}(\{r_{1},r_{2},\cdots,r_{G}\})}}{{\operatorname{std}(\{r_{1},r_{2},\cdots,r_{G}\})}}. \eqno(28)$$
+$$A_{i}=\frac{r_{i}-{\operatorname{mean}(\{r_{1},r_{2},\cdots,r_{G}\})}}{{\operatorname{std}(\{r_{1},r_{2},\cdots,r_{G}\})}}. \tag{28}$$
 
 We incorporate prompts from diverse domains, such as coding, math, writing, role-playing, and question answering, during the RL process. This approach not only aligns the model more closely with human preferences but also enhances performance on benchmarks, especially in scenarios where available SFT data are limited.
 
