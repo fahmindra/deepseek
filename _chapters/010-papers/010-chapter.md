@@ -1,6 +1,6 @@
 ---
 slug: ch-10-1
-title: "DeepSeek-v4 beyond basics"
+title: "Membedah DeepSeek-V4"
 layout: chapter
 ---
 

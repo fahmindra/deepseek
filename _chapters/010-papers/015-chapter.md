@@ -1,5 +1,5 @@
 ---
-slug: ch-10-1
+slug: ch-10-15
 title: "DeepSeek-v4 beyond basics"
 layout: chapter
 ---
