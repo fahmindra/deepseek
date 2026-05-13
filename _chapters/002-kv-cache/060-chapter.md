@@ -1,162 +1,212 @@
----
-slug: ch06-the-memory-first-approach-multi-query-attention-mqa
-title: "2.6 The memory-first approach: Multi-Query Attention (MQA)"
+ ---
+slug: bab-06
+title: "1.6 Summary"
 layout: chapter
 ---
 
-What is the simplest, most direct thing one could do to solve the KV Cache memory problem? Multi-Query Attention (MQA) answers this question with a radical proposal: what if all the attention heads simply share the same Key and Value matrices?
+# **Bab 6: Jalur Pelatihan DeepSeek: Arsitektur Skala Besar (Makro) & Peningkatan hingga Triliunan Parameter**
 
-### 2.6.1 The core idea: Sharing a single key and value
+### **Yang akan kita pelajari pada bab ini:**
+*   Peningkatan Arsitektur Skala Besar (Makro): *Manifold-Constrained Hyper-Connections* (mHC)
+*   Sistem Pengoptimal Tingkat Lanjut: Pengoptimal *Muon* dan rumus putaran (iterasi) *Newton-Schulz*
+*   Infrastruktur Tingkat Ekstrem: Tumpang-tindih (overlap) Jalur Paralel Pakar, Bahasa *TileLang*, dan Jalur Paralel Konteks
+*   Penyusunan Data untuk masa Pra-Pelatihan menggunakan lebih dari 32 Triliun kata (token)
 
-To understand MQA's innovation, we must first recall how standard Multi-Head Attention (MHA) works. In a standard Transformer, within each layer, each attention head acts as an independent expert. This means it has its own unique, learned weight matrices for Keys (Wk) and Values (Wv), distinct from all other heads in that layer. This can be summarized as: in vanilla MHA, each head has distinct Wk and Wv.
+Pada bab-bab sebelumnya, kita sangat berfokus pada *arsitektur skala kecil (mikro)* dari model DeepSeek. Kita telah merancang sistem Perhatian (Attention) yang super efisien (seperti MLA, DSA, dan Hybrid Attention) untuk memecahkan masalah kebuntuan memori komputer pada *KV cache*. Kita telah meningkatkan ukuran dan kapasitas model secara pintar menggunakan *Mixture-of-Experts* (MoE) dan memisahkan tugas hafalan pasti (statis) menggunakan memori bersyarat *Engram*. Terakhir, kita telah mengoptimalkan ketelitian matematika ke batas yang paling ekstrem melalui kuantisasi ukuran kecil FP8 dan FP4.
 
-![Figure 2.23 Standard Multi-Head Attention (MHA). Each of the four attention heads has its own distinct Key and Value weight matrices, indicated by the different colors. This allows each head to specialize and learn different patterns.](https://drek4537l1klr.cloudfront.net/dandekar/v-2/Figures/02__image024.png)
+Namun, merancang sebuah arsitektur skala kecil yang brilian di atas papan tulis sangatlah berbeda dengan tugas nyata melatih sebuah model berisi 671 miliar sel saraf buatan (parameter) secara langsung menggunakan ribuan komputer fisik (kluster berisi 10.000 GPU) dan menggunakan lautan data berisi lebih dari 32 Triliun kata.
 
-As shown in figure 2.23, if we have four attention heads, the Key weight matrix is effectively split into four unique parts: Wk1, Wk2, Wk3, and Wk4. The same is true for the Value weight matrix. Because these weights are initialized randomly and trained independently, each head learns to project the input embeddings into a different representational space. Q1 is different from Q2, V1 is different from V2, and so on. This diversity is the source of MHA's power; it allows the model to capture multiple perspectives simultaneously.
+Ketika jaringan otak buatan diperbesar hingga memiliki ratusan lapisan dan triliunan parameter, masalah-masalah bencana yang baru akan bermunculan. Hukuman koreksi (gradien) bagi AI bisa meledak menjadi terlalu besar atau malah menghilang sama sekali. Sistem pengoptimal (*optimizer*) akan menyedot terlalu banyak memori. Terlebih lagi, kemacetan lalu lintas data antar komputer-komputer GPU akan mencekik aliran kerja sistem, membuat perangkat keras komputer yang harganya miliaran itu hanya diam menganggur karena harus saling menunggu data.
 
-However, this is also the source of its memory problem. To enable fast inference, we must cache the full Key and Value matrices for every single head. Multi-Query Attention takes a direct and aggressive approach to solve this. It proposes a simple change: while each head still gets its own unique Query projection (allowing each head to "ask" a different question), all heads are forced to share one single, common set of Key and Value projections.
+Bab ini merupakan puncak akhir dari **Tahap 3** peta jalan kita. Kita akan melihat gambaran yang lebih besar (zoom out) untuk menjelajahi **arsitektur skala besar (makro)** dan **jalur pipa infrastruktur** yang dibutuhkan untuk melatih model-model kecerdasan buatan tingkat mutakhir ini.
 
-![Figure 2.24 Multi-Query Attention (MQA). All four heads still have unique Query projections, but they now share a single, common Key and Value projection, indicated by the uniform light blue and yellow colors.](https://drek4537l1klr.cloudfront.net/dandekar/v-2/Figures/02__image025.png)
+Pertama, kita akan memecahkan masalah ketidakstabilan jaringan otak dengan mengganti sambungan sisa (*residual connections*) yang standar menjadi sambungan **Manifold-Constrained Hyper-Connections (mHC)**. Selanjutnya, kita akan membuang pengoptimal (*optimizer*) standar seperti AdamW yang boros, dan beralih ke pengoptimal yang sangat canggih, yaitu **Muon Optimizer**. Terakhir, kita akan membedah jalur pipa infrastruktur tingkat ekstrem yang direkayasa oleh DeepSeek. Sistem ini dibuat untuk menumpuk-numpukkan (tumpang-tindih) jadwal komunikasi pengiriman data agar bisa berjalan di waktu yang bersamaan dengan proses perhitungan komputer. Ini menjamin ribuan komputer GPU mereka dapat bekerja dengan kecepatan puncak secara sempurna tanpa ada sedetik pun waktu yang terbuang.
 
-Look closely at the difference in figure 2.24. The Key weight matrices for all heads (Wk1 through Wk4) are now identical, and the same is true for the Value weight matrices. This means that when the input embedding is projected, the resulting K1, K2, K3, and K4 matrices are all exact copies of each other. The same applies to the Value matrices.
+---
 
-The implication for caching is immediate and profound. Instead of needing to store four separate Key matrices and four separate Value matrices in our cache, we only need to store one Key matrix and one Value matrix. During inference, each of the four query heads will simply attend to this single, shared set of keys and values.
+## **6.1 Peningkatan Arsitektur Skala Besar (Makro): Manifold-Constrained Hyper-Connections (mHC)**
 
-This simple architectural tweak is the core idea behind Multi-Query Attention. It prioritizes memory savings above all else. In the next sections, we will explore the dramatic impact this has on the KV Cache formula and the inevitable trade-off it creates for model performance.
+Untuk memahami arsitektur makro dari sebuah jaringan otak buatan yang dalam (memiliki banyak lapisan), kita harus melihat bagaimana blok-blok bangunan dasar (seperti lapisan *Attention* dan FFN/MoE) disambungkan satu sama lain. Selama sepuluh tahun terakhir, raja tak terbantahkan dalam hal penyambungan antar-lapisan adalah **Sambungan Sisa (Residual Connection)**, yang pertama kali diperkenalkan pada arsitektur bernama ResNets.
 
-### 2.6.2 The impact on the KV cache formula
+Bentuk bangunan dari sebuah lapisan sambungan sisa biasa ($l$) dapat ditulis dengan rumus matematika sebagai berikut:
+$$x_{l+1} = x_l + \mathcal{F}(x_l, W_l)$$
 
-The architectural change from MHA to MQA has a dramatic and direct impact on the size of the KV Cache. Let's revisit the formula we established in Section 2.5.1:
+Di mana $x_l$ adalah data masukan, $\mathcal{F}$ adalah fungsi proses dari lapisannya (misalnya proses *Attention* atau MoE), dan $x_{l+1}$ adalah hasil keluarannya.
 
-![Equation](https://drek4537l1klr.cloudfront.net/dandekar/v-2/Figures/02__image026.png)
+Kesuksesan sambungan sisa ini pada dasarnya berasal dari sifatnya yang disebut **sifat pemetaan identitas (identity mapping property)**. Istilah *pemetaan identitas* merujuk pada bagian komponen $x_l$ itu sendiri. Sifat ini menjamin agar sinyal data asli dan murni dari lapisan awal yang dangkal bisa langsung disalurkan masuk ke lapisan otak yang paling dalam tanpa adanya rintangan. Sinyal asli yang disalurkan terus ini bertindak sebagai sebuah mekanisme hukum kekekalan matematika yang berfungsi menjaga kestabilan selama proses pelatihan raksasa berlangsung.
 
-The key variable here is n, the number of attention heads. In MHA, because every head has its own unique Key and Value matrices, the total memory required scales linearly with the number of heads.
+### **6.1.1 Masalah pada Sambungan Ekstra (Hyper-Connections) standar**
 
-In Multi-Query Attention, since all heads share the same single Key and Value pair, we no longer need to store n different versions. We only need to store one. The formula becomes:
+Baru-baru ini, para peneliti memperkenalkan tipe sambungan baru bernama **Hyper-Connections (HC) / Sambungan Ekstra**, yang bertujuan menambahkan kemampuan baru pada sambungan sisa. Caranya adalah dengan melebarkan ukuran dan jalur sisa tersebut. HC ini sangat meningkatkan kerumitan susunan jalur otak, namun tanpa membuat beban perhitungan komputer (FLOPs) menjadi bertambah berat bagi unit-unit pemrosesnya.
 
-![Equation](https://drek4537l1klr.cloudfront.net/dandekar/v-2/Figures/02__image027.png)
+Secara resmi, perjalanan data satu lapis di dalam arsitektur HC dijelaskan dengan rumus:
+$$x_{l+1} = H_l^{res} x_l + H_l^{post\top} \mathcal{F}(H_l^{pre} x_l, W_l)$$
 
-In this revised formula, the n term is effectively replaced with 1, where n is the total number of attention heads, eliminating the linear scaling with the number of heads. This reduces the size of the KV Cache by a factor of n. The impact of this reduction is staggering for large models:
+Berbeda dengan sambungan sisa standar yang jalurnya sempit, dimensi (ukuran) data asli $x$ di sini sengaja diperlebar sebanyak $n_{hc}$ kali lipat (misalnya, diperlebar ukurannya dari $d$ menjadi $4d$). Bagian huruf $H_l^{pre} \in \mathbb{R}^{1 \times n_{hc}}$ dan $H_l^{post} \in \mathbb{R}^{1 \times n_{hc}}$ adalah lapisan matematika khusus yang bisa belajar. Tugasnya adalah mengumpulkan hasil bacaan dari arus yang lebar tadi untuk diubah menjadi data masukan bagi lapisannya, lalu kemudian mengubah hasil keluaran lapisannya kembali ke ukuran arus jalur yang besar tadi.
 
-GPT-3 (175B): This model has 96 attention heads (n=96). Using MQA would reduce its KV Cache size by a factor of 96, from 4.5 GB down to a mere 48 MB.
+Namun yang paling penting dan paling berbahaya dari rumus itu adalah bagian $H_l^{res} \in \mathbb{R}^{n_{hc} \times n_{hc}}$. Ini adalah sebuah matriks yang bisa belajar, yang bertugas mencampur aduk dan mengaduk ciri-ciri data yang mengalir *di dalam* arus sambungan sisa itu sendiri.
 
-DeepSeek-V3 (671B): This model has 128 attention heads (n=128). MQA would reduce its theoretical KV Cache size by a factor of 128, from ~400 GB down to just over 3 GB.
+**Krisis Ketidakstabilan yang Bencana:**
+Seiring dengan semakin besarnya skala pelatihan, model HC ini memperkenalkan sebuah risiko bencana besar terhadap ketidakstabilan angka matematika komputernya. Karena matriks pengaduk campuran sisa $H_l^{res}$ ini sifatnya benar-benar bebas dan tidak diatur (unconstrained), maka arsitektur canggih ini pada dasarnya telah merusak dan menghancurkan "sifat pemetaan identitas" yang selama ini bertugas menjaga keamanan sinyal data asli.
 
-This is an incredible reduction in memory footprint, and it directly translates to faster inference (as we will see in the code) because less data needs to be loaded from memory at each step. So, if MQA is so effective at solving the memory problem, why doesn't every model use it?
+Ketika pola HC ini dilipatgandakan dan disambung terus menerus melewati ratusan lapisan otak, aliran sinyal aslinya lama-kelamaan akan diatur oleh hasil perkalian bertumpuk dari ratusan matriks tersebut: $\prod_{i=1}^{L-l} H_{L-i}^{res}$. Karena semua matriks itu liar dan tidak dibatasi, mengalikan ratusan matriks yang tidak diatur ini secara bersamaan akan menyebabkan rata-rata nilai angka seluruh sistem melesat tidak terkendali. Akibatnya, nilai angka sinyalnya hanya akan menuju pada dua akhir yang tragis: menyusut habis menjadi nol, atau meledak hancur membesar hingga angka tak terhingga. Pengamatan uji coba langsung terhadap model HC selama masa pra-pelatihan skala raksasa, memperlihatkan adanya lonjakan tajam pada angka nilai hukuman (gradient norm), yang pada akhirnya selalu berujung pada kerusakan dan kegagalan total proses pelatihan AI tersebut.
 
-### 2.6.3 The performance trade-off: Loss of expressivity
+### **6.1.2 Solusi mHC: Melemparkan dan membatasi matriks ke dalam ruang politoop Birkhoff**
 
-The dramatic memory savings of MQA seem almost too good to be true, and in a way, they are. This efficiency comes at a significant cost: a degradation in the model's performance and its ability to understand complex language. To understand this trade-off, we must revisit the fundamental reason we use multi-head attention in the first place.
+Untuk mengatasi bencana ketidakstabilan ini tanpa harus membuang kehebatan jalur lebar dari sambungan sisa, tim DeepSeek mengembangkan **Manifold-Constrained Hyper-Connections (mHC)**.
 
-Let's consider the following ambiguous sentence:
+Ide pokok dari mHC adalah menangkap sang matriks pengaduk sisa $H_l^{res}$ yang liar dan tak terbatas itu, lalu secara matematika kita paksa mengikatnya dan mengekangnya ke dalam sebuah batas ruang (manifold) bentuk geometris tertentu. Secara khusus, mHC mewajibkan agar wujud akhir matriks $H_l^{res}$ tersebut *harus* menjadi sebuah matriks yang disebut **doubly stochastic matrix (matriks stokastik ganda)**.
 
-> *"The artist painted the portrait of a woman with a brush."*
+Matriks stokastik ganda adalah sebuah kotak matriks berisi angka-angka nyata yang tidak boleh negatif, di mana jumlah angka di setiap baris mendatarnya jika ditambahkan hasilnya pasti sama dengan 1, dan jumlah angka di setiap kolom menurunnya jika ditambahkan hasilnya juga pasti sama persis dengan 1. Secara matematika, kita membatasi matriks $H_l^{res}$ ke dalam sebuah ruang batas $\mathcal{M}^{res}$ (yang di dalam ilmu matematika sering disebut sebagai bangun ruang *Birkhoff polytope*):
 
-This sentence has at least two possible interpretations:
+$$\mathcal{M}^{res} := \{ H \in \mathbb{R}^{n_{hc} \times n_{hc}} \mid H\mathbf{1} = \mathbf{1}, \mathbf{1}^T H = \mathbf{1}^T, H \ge 0 \}$$
 
-1.  Interpretation A (Instrument): The artist used a brush to paint the portrait. (painted with a brush)
-2.  Interpretation B (Attribute): The portrait is of a woman who is holding a brush. (woman with a brush)
+**Menerapkan Ikatan Batasan menggunakan Algoritma Sinkhorn-Knopp:**
+Namun, bagaimana cara kita memaksa sebuah jaringan otak AI, yang kerjanya selalu menebak-nebak, agar ia hanya bisa menghasilkan wujud matriks stokastik ganda secara sempurna pada setiap kali ia berproses maju? DeepSeek mewujudkan ini dengan cara membiarkan AI awalnya menebak dan menghasilkan angka parameter yang liar tanpa batas, lalu mereka "menjewer" hasil liar tersebut menggunakan sebuah rumus disiplin matematika yang disebut **Algoritma Sinkhorn-Knopp**.
 
-A sophisticated language model needs to be able to understand and disentangle both of these potential relationships simultaneously. This is precisely what Multi-Head Attention (MHA) was designed to do.
+Berdasarkan dari bahan masukan $x$ yang sudah diratakan dan dinormalkan, rumus mHC awalnya menghasilkan sebuah matriks campuran sementara yang bebas liar $\tilde{H}_l^{res}$, yaitu hasil menggunakan tebakan proyeksi linier dan angka tambahan statis yang telah dipelajari AI.
 
-**How MHA Handles Ambiguity?**
+Untuk memaksa melempar dan menjepit matriks liar ini ke dalam bentuk batas bangun *Birkhoff polytope*, pertama-tama sistem mHC ini akan menerapkan fungsi matematika eksponensial untuk menjamin semua angka di dalam matriks itu nilainya wajib berubah menjadi positif:
+$$M^{(0)} = \exp(\tilde{H}_l^{res})$$
 
-In a standard MHA block, each attention head is an independent "expert analyst" with its own set of learned weights (Wk and Wv). This independence allows them to specialize. During training, the model might learn the following:
+Langkah selanjutnya, Algoritma *Sinkhorn-Knopp* secara perlahan akan menghitung perulangan (iterasi) menormalkan baris dan kolom secara bergantian:
+$$M^{(t)} = \mathcal{T}_r \left( \mathcal{T}_c \left( M^{(t-1)} \right) \right)$$
 
-*   **Head 1** could specialize in syntactic relationships. Its learned weights might cause its Key and Value vectors to focus on verb-instrument pairings. When its Query for the token "painted" looks at the Key for "brush," it would calculate a very high attention score, effectively capturing the meaning: "The action of painting was done using a brush."
-*   **Head 2**, on the other hand, could specialize in semantic or descriptive relationships. Its unique weights might cause its Key and Value vectors to focus on noun-attribute pairings. When its Query for "woman" looks at the Key for "brush", it might calculate a high score, capturing the alternative meaning: "The woman in the portrait is associated with a brush."
+Di mana $\mathcal{T}_r$ adalah simbol untuk proses normalisasi baris, dan $\mathcal{T}_c$ untuk normalisasi kolom. Putaran perulangan ini secara matematika pasti selalu berujung (konvergen) secara sempurna pada bentuk matriks stokastik ganda yang terkekang rapi. Dalam penggunaannya, mengatur jumlah perulangan maksimum sebanyak $t_{max} = 20$ kali sudah memberikan hasil pemaksaan yang sangat akurat. Matriks akhir yang telah dikekang paksa inilah ($H_l^{res} = M^{(t_{max})}$) yang pada akhirnya boleh ditempelkan dengan aman ke arus jalur sambungan sisanya.
 
-Because K1 is different from K2, and V1 is different from V2, the model can process both interpretations in parallel. The final context vectors contain a rich, blended understanding of all the different relationships detected by all the heads. This is the source of MHA's expressive power.
+### **6.1.3 Mengembalikan Sifat Pemetaan Identitas untuk Jaringan Otak yang Sangat Dalam**
 
-**How MQA Loses This Power?**
+Pertanyaannya, mengapa memaksa dan melempar matriks itu ke ruang bangun *Birkhoff polytope* bisa menyembuhkan penyakit kehancuran gagalnya pelatihan tadi? Pemilihan bentuk stokastik ganda secara ilmiah memberikan tiga jaminan hukum matematika yang secara unik sangat amat menguntungkan bagi pelatihan bermodel triliunan parameter:
 
-Now, let's consider what happens in Multi-Query Attention. MQA forces all heads to share a single, common Key and Value matrix. K1 is now identical to K2, and V1 is identical to V2.
+1.  **Pelestarian Batas Angka (Norm Preservation):** Standar batas kekuatan (spectral norm) dari jenis matriks stokastik ganda mana pun di dunia ini itu *pasti* terkurung ketat pada batas maksimal angka 1 (yaitu, $\|H_l^{res}\|_2 \le 1$). Ini artinya, peta matriks yang sedang belajar ini secara hukum matematika *mustahil bisa berkembang melebar (non-expansive)*. Sinyal data yang melintasi matriks ini tidak mungkin akan mendadak meledak ukurannya. Hal ini telah secara mutlak memusnahkan masalah ledakan hukuman gradien (gradient explosion problem) dari akar-akarnya.
+2.  **Keterutupan Campuran Matematis (Compositional Closure):** Segala jenis perkalian matriks yang bentuknya sama-sama stokastik ganda ini pasti punya keajaiban. Ia menjamin bahwa hasil campuran berapapun lapisan kedalamannya akan tetap selalu menghasilkan bentuk wujud stokastik ganda juga. Alhasil, stabilitas mutlak akan terjaga murni selamanya sejak lapisan otak nomor 1 hingga ke lapisan dasar otak yang paling akhir.
+3.  **Kecembungan Geometris (Geometric Convexity):** Bangun ruang *Birkhoff polytope* pada dasarnya adalah selimut penutup cembung dari sekumpulan himpunan matriks penukar (permutation). Oleh karenanya, hasil pemetaan pencampuran sisa ini selalu bertindak layaknya racikan komposisi cembung (convex) atas fitur-fitur yang masuk. Menerapkan pengadukan matriks-matriks tersebut secara berulang-ulang akan selalu mencampur seluruh aliran informasi secara perlahan (monotonically) melintasi aliran arusnya, berfungsi layaknya sebuah mesin pencampur fusi data yang berkarakter sangat tangguh dan stabil.
 
-This creates a critical problem. The single, shared Key matrix can no longer specialize. It must try to be a jack-of-all-trades, encoding a generic representation of the sentence's information. It cannot be an expert at understanding two different kinds of relationships at the same time. For example, it struggles to precisely capture both that the brush is a tool for painting and that it is an object held by the woman.
+Dengan cara mengimplementasikan mHC, DeepSeek terbukti mampu mengawetkan kapasitas luar biasa besar dari jalur lebar arus sisa (hyper connection), dan pada saat yang sama mereka juga berhasil memulihkan seratus persen hukum keaslian pemetaan identitasnya. Ini memberikan perlindungan lapis baja demi garansi kestabilan mutlak sewaktu melalui masa penderitaan pra-pelatihan AI di level raksasa.
 
-When Head 1 (the syntax expert) and Head 2 (the semantics expert) both send out their unique queries, they are both looking at the exact same, generic set of keys. The shared Key for "brush" cannot effectively signal both "I am an instrument for painting" and "I am an object held by a woman" at the same time. One of these nuances will likely be weakened or lost entirely.
+---
 
-This is the fundamental drawback of MQA:
+## **6.2 Pengoptimalan Tingkat Lanjut (Advanced Optimization): The Muon Optimizer**
 
-> By forcing all heads to share the same Key and Value representations, MQA severely restricts their ability to specialize. The model loses a significant amount of its capacity to capture diverse and subtle relationships within the text, leading to a degradation in overall performance.
+Selama bertahun-tahun lamanya, juara bertahan mutlak sistem perbaikan / pengoptimal otomatis (*optimizer*) andalan semua orang untuk melatih Model Bahasa Besar adalah **AdamW**. Namun sayangnya, ketika skala model AI dikatrol menjulang segede model DeepSeek-V3 maupun V4, rakusnya selera makan memori milik AdamW perlahan bermetamorfosa menjadi kutukan beban utang yang parah. Sang AdamW ini selalu mencatat dan mengawal dua macam tumpukan buku status catatan pengoptimalan secara terpisah (catatan nilai Momentum dan catatan nilai Variance) pada *setiap satu buah titik parameter* model AI. Jika AI itu punya 671 Miliar parameter, maka untuk menaruh semua status catatan AdamW itu dalam resolusi akurasi mewah (FP32), sistem ini rakus merampas Terabyte-Terabyte perbendaharaan memori kartu grafis (VRAM).
 
-While MQA is a brilliant solution for the memory problem, it achieves this by fundamentally compromising the core strength of the multi-head design. This is why it's often seen as a "memory-first" approach. This significant performance trade-off is what led researchers to seek a more balanced middle ground, which we will explore later with Grouped-Query Attention. But first, let's see how we can implement this memory-saving MQA architecture in code.
+Untuk mendambakan percepatan ke arah garis finis pemahaman bahasa (convergence), mencetak ketenangan pelatihan tingkat dewa, serta efisiensi pengiritan sisa tempat memori yang tak masuk akal; DeepSeek nekat membuang penggunaan sang AdamW secara mayoritas, lalu mengangkat dan melantik sosok pengoptimal kelas berat super canggih yaitu **Muon (Momentum Orthogonalized by Newton-Schulz)**.
 
-### 2.6.4 Implementing an MQA layer from scratch
+### **6.2.1 Iterasi Silangan Newton-Schulz demi proses pembentukan sudut siku Orthogonal (Orthogonalization)**
 
-Implementing Multi-Query Attention in PyTorch is straightforward. The core logic of the attention calculation remains the same; the only change is in how the Key and Value projections are handled. Instead of creating `num_heads` different projections, we create only one and then repeat it for all heads.
+Filosofi mendasar pengoptimal Muon adalah menghargai martabat dari kotak susunan matriks pada jaringan saraf. Muon menganggap mereka sebagai *wujud entitas matriks sejati*, bukan sekadar melihat mereka seperti barisan cacing parameter-parameter merdeka sendirian (seperti perlakuan AdamW). Muon berusaha menata matriks nilai hukuman update itu dengan rumus matematis khusus (*Orthogonalization*) terlebih dahulu, baru kemudian menabrakkan (menerapkan) angka itu kepada matriks otak (Bobot). Berdasarkan hasil empati ujicoba, prosedur disiplin tinggi ini membimbing nilai pemahaman AI meluncur ke arah kesempurnaan (convergence) dengan sangat mantap serta kilat.
 
-The following code defines a MultiQueryAttention module. Pay close attention to the `__init__` method, where the architectural difference is most apparent.
+Proses hukumannya berjalan menurut adegan berikut:
+1.  Merumuskan standar hitungan angka teguran gradien: $G_t = \nabla_W \mathcal{L}_t(W_{t-1})$.
+2.  Mengakumulasikan energi catatan tabungan masa lalu (buffer momentum): $M_t = \mu M_{t-1} + G_t$.
+3.  Memasukkan jurus tipu muslihat Nesterov: $O_t' = \mu M_t + G_t$.
 
-##### Listing 2.3 Implementing an MQA layer from scratch
+Nah di sinilah letak revolusinya. Ketimbang langsung sembrono menggunakan $O_t'$ untuk memukul matriks bobot, Muon justru ingin menyucikannya dulu agar ia jadi siku-siku (Orthogonalized). Misalkan untuk matriks $M$, kita cari Rumus Uraian Nilai Tunggalnya (Singular Value Decomposition / SVD) yaitu: $M = U \Sigma V^T$. Tujuan akhir suci yang mau didapat adalah wujud matriks suci hasil ortogonal yaitu $U V^T$.
 
-```python
-import torch
-import torch.nn as nn
- 
-class MultiQueryAttention(nn.Module):
-    def __init__(self, d_model, num_heads, dropout=0.0):
-        super().__init__()
-        assert d_model % num_heads == 0, \
-            "d_model must be divisible by num_heads"
- 
-        self.d_model = d_model
-        self.num_heads = num_heads
-        self.d_head = d_model / num_heads
- 
-        self.W_q = nn.Linear(d_model, d_model)
-        # The Key and Value projections are now single, shared linear layers. 
-        # They project down to the dimension of a single head (d_head) 
-        # because only one projection is being created, not num_heads. 
-        # This is the core architectural change that saves KV cache memory.
-        self.W_k = nn.Linear(d_model, self.d_head)
-        self.W_v = nn.Linear(d_model, self.d_head)
-        self.W_o = nn.Linear(d_model, d_model)
- 
-        self.dropout = nn.Dropout(dropout)
-        self.register_buffer('mask', torch.triu(
-        torch.ones(1, 1, 1024, 1024), diagonal=1))
- 
-    def forward(self, x):
-        batch_size, seq_len, _ = x.shape
- 
-        # The Query projection remains the same as in standard Multi-Head Attention.
-        # It projects to the full model dimension, which is then split among the heads. 
-        # This allows each head to "ask" a unique question.
-        q = self.W_q(x).view(batch_size, seq_len, self.num_heads, 
-        self.d_head).transpose(1, 2)
- 
-        k = self.W_k(x).view(batch_size, seq_len, 1, 
-        self.d_head).transpose(1, 2)
-        v = self.W_v(x).view(batch_size, seq_len, 1, 
-        self.d_head).transpose(1, 2)
- 
-        # The single Key and Value tensors are "repeated" or broadcast to match 
-        # the number of query heads. This is how all heads are made to share 
-        # the same K and V information without creating expensive data copies in memory. 
-        # It's the implementation of the "sharing" mechanism.
-        k = k.repeat(1, self.num_heads, 1, 1)
-        v = v.repeat(1, self.num_heads, 1, 1)
- 
-        attn_scores = (q @ k.transpose(-2, -1)) / (self.d_head ** 0.5)
- 
-        attn_scores = attn_scores.masked_fill(
-        self.mask[:,:,:seq_len,:seq_len] == 0, float('-inf'))
- 
-        attn_weights = torch.softmax(attn_scores, dim=-1)
-        attn_weights = self.dropout(attn_weights)
- 
-        context_vector = (attn_weights @ v).transpose(1, 2) \
-        .contiguous().view(batch_size, seq_len, self.d_model)
- 
-        output = self.W_o(context_vector)
-        return output
-```
+Celakanya, menghitung kalkulasi mutlak SVD secara penuh membedah matriks-matriks raksasa ini *pada setiap ketukan detik nafas langkah latihan AI*, itu super konyol dan butuh biaya komputasi GPU yang setara membakar jutaan dolar. Atas dasar inilah, Muon menyontek jurus pendekatan alternatif memakai rumus **iterasi (perulangan) Newton-Schulz**, karena rumus Newton-Schulz ini secara brilian mampu menaksir hasil taksiran nilai SVD tersebut yang *nyaris akurat* cukup dengan cuma bermodal mengandalkan standar hitungan operasi cepat mengalikan dua matriks saja di GPU.
 
-Let's break down the key differences between this MultiQueryAttention module and a standard MultiHeadAttention module:
+Langkah sulapnya, pertama-tama si matriks dinormalisasi agar angka nyawa tertingginya tidak melebihi kekuatan angka 1: $M_0 = M / \|M\|_F$.
+Lalu sesudah itu, tiap siklus perulangan Newton-Schulz akan membombardir pembaruan ini:
+$$M_k = a M_{k-1} + b (M_{k-1} M_{k-1}^T) M_{k-1} + c (M_{k-1} M_{k-1}^T)^2 M_{k-1}$$
 
-*   **Key and Value Projections:** In a standard MHA, the output dimension of `W_k` and `W_v` would be `d_model`. Here, they project down to `d_head`, the size of a single head. This is because we are only creating one projection, not `num_heads` projections that are later split.
-*   **Repeating K and V:** The magic of MQA happens in the forward pass. After computing the single Key and Value projections, we use the `.repeat()` method. This doesn't actually copy data in memory in the same way as a full matrix would; instead, it creates a "view" of the data where the same Key and Value tensors are presented to each of the `num_heads` Query heads. This is how "sharing" is implemented efficiently.
-*   **Efficiency Gain:** The primary gain comes from the reduced size of the Key and Value caches. In an MHA implementation, we would need to cache tensors of shape `(batch_size, num_heads, seq_len, d_head)` for both Keys and Values. In MQA, we only need to cache tensors of shape `(batch_size, 1, seq_len, d_head)`, drastically reducing the memory footprint.
+**Strategi Campuran Campursari (Hybrid) milik DeepSeek:**
+Bagi regu komando tim DeepSeek, demi V4 mereka secara ekstrem mengobrak-abrik algoritma murni tadi dan mengawinkannya memakai versi silang *campuran (hybrid)* putaran Newton-Schulz yang membentang menempuh 10 tahap langkah di dua tahap stadium berbeda:
+*   **Langkah 1-8:** Sistem menyemburkan peluru koefisien beringas bernilai $(a, b, c) = (3.4445, -4.7750, 2.0315)$ agar nilai error itu melaju konvergen cepat menembus waktu, dan memiting angka singular nilainya mendekati sempurna ke angka 1.
+*   **Langkah 9-10:** Strategi bergeser pindah gigi, sekarang pakai peluru koefisien pengunci bernilai $(a, b, c) = (2, -1.5, 0.5)$ untuk mematenkan angka tunggal singular-nya tepat tegak kaku terparkir mati di angka 1.
 
-With this implementation, we have a functional attention layer that aggressively optimizes for memory, albeit at the cost of the performance trade-offs we've discussed. This sets the stage perfectly for exploring a more balanced solution.
+Sebagai pungkasan, angka pembaruan matang yang sudah tegak siku-siku (orthogonalized) tersebut akan diskalakan-balik mengikuti besaran Akar Kuadrat Rata-Rata (*Root Mean Square* / RMS) dari matriks tegoran yang asli tadi. Gara-gara penyesuaian akhir nan sepele inilah yang mengantongi karcis izin buat tim DeepSeek bisa langsung seratus persen merecycle (menggunakan ulang) seluruh catatan pengaturan *hyperparameter* ukuran langkah (learning rate) maha rumit yang sejatinya sudah kadung mereka setel susah payah buat model lawas optimizer AdamW.
+
+### **6.2.2 Taktik Sistem Bagi Tugas (Distributed Implementation) Super Hemat (Strategi Hybrid ZeRO)**
+
+Sekalipun status Muon adalah dewa superior di dalam ranah keunggulan matematika murni, sayangnya ia mengundang problem kebingungan penataan sistem yang maha pusing bagi arsitektur komputernya. Masalah utamanya adalah optimizer Muon rakus mensyaratkan wujud *utuh tak terbelah* satu piring penuh dari matriks gradien agar kalkulasi rumus perkalian matriks Newton-Schulz miliknya jalan. Ini jelas-jelas sangat haram bagi kitab aliran hukum distribusi data modern seperti kerangka kerja industri wajib **Zero Redundancy Optimizer (ZeRO)**.
+
+Tradisi standar dari sistem ZeRO adalah mencincang-cincang remuk elemen setiap bongkahan papan matriks (parameter), dan sisa potongannya dibagi rata ke pangkuan masing-masing unit GPU di luar sana agar memorinya tidak bengkak. Celakanya, kalau wujud matriksnya ini sedang terpecah-belah cincang di berbagai mesin, mana bisa kita masukkan pecahan itu ke ke rumus matematika kalikalian utuh ala Newton-Schulz!
+
+Guna menyambung benang kusut perseteruan ini, para insinyur DeepSeek menempa ciptaan mahakarya jurus taktik **Strategi Hybrid ZeRO**, spesialis murni direkayasa khusus demi sang Muon:
+
+**Aturan untuk Otak Murni (Dense Parameters):**
+DeepSeek memasang garis polisi membatasi batas level cincangan metode ZeRO ini. Mereka memperkerjakan taktik kerumitan tingkat dewa memakai apa yang dinamakan *knapsack algorithm* (Algoritma Tas Punggung Pencuri) saat membagikan jatah kerja. Algoritma ini pintar memilah mana balok matriks yang utuh (tak tercincang), lalu dibagikannya balok utuh itu kepada GPU yang ada dengan hitungan pemerataan keadilan seimbang, demi menjaga sang matriks parameter tidak retak / rusak struktur satuannya di berbagai rank server. Kumpulan mangkuk tugas ini juga sekalian diganjel dengan karet bantalan (di-pad) agar ukurannya seragam menyerupai ukuran porsi paling jumbo. Tujuannya supaya proses komando *reduce-scatter* (kirim-dan-sebar) sinkronisasi jadi kian cekatan lincah berkat seragamnya ukuran data, di mana efek samping pengganjalan ini secara menakjubkan cuma merebut di bawah kisaran angka 10% bujet beban memori tambahan (overhead).
+
+**Aturan khusus bagi Anggota Jaringan Pakar (MoE Parameters):**
+Dikarenakan jiwa setiap kotak sel ahli MoE sifatnya 100% individual dan anti kerja kelompk, otomatis perbaikan otak mereka tidak dicampur tapi satu per satu sendiri-sendiri. Strateginya, DeepSeek mengambil papan matriks milik pintu *gate*, bagian menukik (*down*), maupun melonjaknya (*up*) dari segala kumpulan sel ahli yang tersebar sepanjang seratus lapisan model, lalu menggencetnya menjadi seperti aspal pipih memanjang jadi sebuah vektor datar tipis yang super panjang. Saking dahsyatnya besaran populasi sang pakar-pakar ahli (Expert) ini, barisan vektor maha panjang bentukan gepengan ini seketika gampang sekali untuk dipotong dipisah merata ke seluruh batalion kompi peringkat sistem ZeRO, semua itu rampung tanpa menodai setitik pun pecahan matriks yang terpaksa dibongkar logikanya.
+
+**Sistem Hemat Pelaporan Data Hukuman via Angka Kecil (Low-Precision Gradient Communication):**
+Peneliti DeepSeek mencium ada keanehan, kalau langkah iterasi dari rumus Newton-Schulz kepunyaan Muon secara absurd ternyata *masih saja beroperasi sempurna nan stabil* meski perhitungannya cuma menggunakan matriks kelas rendahan dari *BF16*. Memeras kenyataan itu habis-habisan, perisetnya langsung sengaja membulatkan (stochastically round) dan mengorbankan kualitas rupa hukuman pakar (MoE Gradients) menjadi format BF16 kusam ini *sesaat sebelum* sistem menyelaraskan laporan sinkronisasi mengirim pesan lintas ke jaringan rank (data-parallel ranks). Akibatnya hal ini seketika menyayat-separuh beban berat volume memori pengiriman di jalur kabel jaringannya. Namun supaya jangan ada error memble akibat pembulatan rendahan, alih-alih merilis kodenya ke *reduce-scatter* reguler, mereka mengusir itu semua dengan protokol panggil sandi `All-to-All` (Saling Kirim ke Semua Arah), dilanjutkan dengan acara tutup mata perhitungan penjumlahan murni memakai kotak pengaman super FP32.
+
+---
+
+## **6.3 Infrastruktur Ekstrem (Extreme Infrastructure): Melatih Data Skala Super Masif**
+
+Si bayi raksasa DeepSeek-V4 dijejali suapan asupan pra-pelatihannya dari sebuah super-kluster kandang berisi ratusan ribu sarang *nodes* NVIDIA H800. Dalam taraf ukuran seperti raksasa kosmik, lebar pipa sedotan selang saluran bandwidth antara GPU menjadi satu-satunya penghalang batas kecepatan alam fisik mutlak yang mencekik. Jika kerumunan GPU harus bengong nongkrong menunggu tumpahan paket data terkirim berkat telatnya prosesor jaringan, dijamin total debit putaran produksi FLOPs mesin pun langsung nyungsep hancur.
+
+Lantaran ingin menggasak potensi kapasitas teoritis FLOPs menuju kecepatan sempurna hingga tetes maksimal, mesin-mesin arsitektur jaringan DeepSeek wajib disetel sempurna supaya pertukaran antrean data jaringan dan jadwal giliran otak menghitung, terjadi dan menyalip tertimpa bersilangan dengan tempo nol cacat.
+
+### **6.3.1 Susun Timpa Waktu Berhitung Halus (Fine-Grained overlap) di Dalam Sistem Paralel Ahli (Expert Parallelism / EP)**
+
+Di alam sistem bentuk arsitektur Campuran Para Ahli (MoE), membelah kekuatan komando pada sistem bernama **Expert Parallelism (EP) / Sistem Paralel Ahli** memancing hadirnya petaka komunikasi lalu lintas yang ambyar ruwet. Sebabnya sepele, sebuah kata masukan (token) bisa jadi sedang mendarat di satu mesin GPU tertentu, eh ternyata pakar ahli bahasa kata tersebut letaknya tersesat di beda gedung dan beda lokasi mesin server GPU. Walhasil triliunan gerbong memori data per detik dipaksa lalu-lalang pontang-panting di sepanjang serabut kabel optik jaringan.
+
+Wawasan rahasia jenius milik DeepSeek adalah bahwa rasa mulas karena kelamaan *Loading* akibat lambatnya pesan antar server ini, terbukti dapat efektif direndam hingga lenyap tuntas 100%, asal diselipkan persis ngumpet tersapu tertutup oleh derasnya riuh perhitungan logika matematika super sadis dan berat milik kumpulan lapis jaringan para Ahli MoE.
+
+Untuk itu mereka membongkar urutan tugas lapisan MoE menjadi kepingan empat tahap tugas terpisah yang jelas arahnya:
+1.  **Pengiriman Pos / Dispatch (Porsi Komunikasi Jaringan):** Tahap mengirim lemparan pesanan si kata tersebut supaya sampai tepat masuk saku ke GPU spesialis target tujuannya.
+2.  **Operasi Linear-1 (Porsi Perhitungan Mesin Komputer):** Memukul data kata itu dengan gempuran matriks hitungan MLP tahap pertama.
+3.  **Operasi Linear-2 (Porsi Perhitungan Mesin Komputer):** Menghantam ulang dengan putaran matriks proyeksi MLP kedua.
+4.  **Gabungan Ulang / Combine (Porsi Komunikasi Jaringan):** Melempar balik si kata yang sudah usai digiling tadi untuk direstorasi pulang menempel ke asrama asal pangkalan barak asalnya GPU-nya.
+
+Guna melipatgandakan peluang susup-menyusup bertumpang-tindih, mereka merumuskan manuver tempur **Skema Fine-Grained EP / Skema EP Potongan Kecil Detail**. Ketimbang konyol menyuruh satu kompi kata untuk serempak masuk dulu di-dispatch semuanya sampai komplit baru dihitung, DeepSeek malah meremukkan pasukan kumpulan Ahli tersebut dan dipecah diselundupkan masuk sebagai "gelombang ombak cilik-cilik".
+
+Dalam skema brilian ini, sesaat begitu satu gelombang serdadu ahli pertama (*first wave*) komplit melewati pos pemberangkatan pengiriman posnya, sekejap detik itu juga mereka dipaksa langsung membakar mesin *Linear-1* dan tancap gas ngebut berhitung. Sejenak saat ritme selang stabil berjalan, otomatis pemandangan akan terlihat: **Grup gelombang ahli hari ini lagi asyik mikir dan menghitung nilai**, bersamaan dengan **kelompok gelombang ahli kloter depan lagi sibuk proses jalan di kabel pengiriman pos jaringan**, dan hal tersebut kembali jalan bersamaan dengan kloter **rombongan gelombang kemarin yang asyik naik kapal perjalanan darat balikan ke pangkalan** di saat yang beriringan sama dan seirama serempak harmonis nan sinkron abadi tanpa bentrok memori!
+
+**Hukum Kesetimbangan Alat Berat (The Hardware Balance Equation):**
+Seusai pertempuran riset kepekaan sistem secara ketat dan brutal, DeepSeek akhirnya sukses menggambar sendiri rumusan wahyu keagungan soal efisiensi jaminan mutu mesin *hardware*. Mereka berikrar tumpang tindih super kilat mutlak hanya terjadi andai syarat sakral *Rasio Beban Hitung Komputer Vs Ongkos Komunikasi Jaringan* (computation-communication ratio) terpenuhi absolut.
+
+Bagi si bongsor DeepSeek-V4, setiap sekuel sejoli satu-kata-berjumpa-satu-ahli memaksa GPU keluar tenaga dan keringat berhitung seberat nilai $6d$ FLOPs kalkulasi murni matematika (Berupa sabetan palang pintu *SwiGLU*, lonjakan naik *up*, beserta benturan turun *down*), sementara proses antarpaketnya yang dihela kawat cuma membakar biaya komunikasi memori semurah setitik tetes air $3d$ bytes semata per lemparan komunikasi (Mulai pengiriman kirim ala paket irit `FP8 Dispatch` plus paket pengembalian kelas menengah `BF16 Combine`).
+
+Ketimpangan fakta realita ini membuahkan formula rasio emas maha cemerlang:
+$$\frac{C}{B} \le 2d = 6144 \text{ FLOPs/Byte}$$
+
+Bila angka $C$ melambangkan laju putaran debar jatuhnya proses hitung (*compute throughput*) dan di sisi lain $B$ mengawal nilai raihan lebar lubang selang arus data kabel (*interconnect bandwidth*). Rumus sakral ini mutlak menjadi bukti sahih bahwa, cukup hanya dengan mengorbankan 1 GB/detik lebar lobang kabel jaringan semata, itu sudah terlalu dari cukup untuk sukses menyembunyikan dan menghapus telak kelemahan waktu muat *(loading time)* transmisi dari sebuah pemrosesan ledakan raksasa operasi matriks hitungan seberat 6.1 TFLOP/detik hitungan di GPU. Sedikit saja ada set mesin *hardware* kelas atas yang sanggup mengimbangi ambang batas titik ini, dijamin selamanya kemacetan rute urusan antrean jejaring koneksi optik akan musnah berhenti mencap dirinya sebagai tembok biang kerok dari pelambatan server selamanya.
+
+### **6.3.2 Kerajinan Ciptaan Khusus Bahasa Inti Mesin (Kernel) Melalui TileLang**
+
+Upaya manusia keras kepala dalam menjahit skrip sistem gila tumpang-tindih, berlapis dan njelimet ini pastilah jika pakai alat pengembang standar kelas receh turunan alat `ATen operators` milik kerangka PyTorch, dijamin hanya akan berbuntut menciptakan ratusan lapis puing keping-keping serpihan cacing algoritma mesin inti (kernels) yang mematah-matah tak terkendali. Tumpukan kode ini cuma akan menyeret daya perah CPU jatuh sia-sia sekadar habis waktu cuma merapikan sampah sisa panggilan instruksi kernel tersebut belum ditambah kehancuran pecahan partikel selokan memori *(memory fragmentation)*.
+
+Meluluhlantakkan krisis semacam ini, orang-orang jenius di DeepSeek menggarap senjata tajam berupa pemanfaatan bahasa sandi **TileLang**, yakni sejenis varian kerangka alat komunikasi gaib spesifik peruntukan yang lazim kita panggil Bahasa Domain Spesifik (DSL / Domain-Specific Language). Dengan pusaka DSL TileLang ini, insinyur pencipta diperkenankan leluasa membordir merakit sendiri gulungan inti "Mega-Kernels" sakti berukuran super besar yang daya hantam terpusatnya sanggup seketika tanpa putus bernafas merangkum meremas pergerakan dari: melempar tugas (*Dispatch*), masuk *Linear-1*, hajar lagi *Linear-2*, dan dijahit ditutup memanggil gembok kembalian usai tugas (*Combine*) langsung berurutan tembak tuntas selaras rapi ke dalam wujud alur selang pipa pabrik giling algoritma perpaduan satu urat nadi ter-padu.
+
+Si ajaib TileLang bisa berakselerasi dalam tempo sangat kencang akibat sokongan rahasia pengawal di baliknya yang tak lain adalah jendral peramal SMT Solver. DeepSeek dengan sadis menyuntik paksa menyatu pengawal peramal tingkat atas yang dikelompokkan dengan tajuk **Z3 SMT solver** itu langsung menancap menyatu ke jantung *compiler* (Sang Penerjemah) mesin program kompilasi dari pusaka sang TileLang. Tugas Sang dewa Z3 adalah menelaah memelototi analisis formal angka bilangan bulat (*quantifier-free non-linear integer arithmetic*) buat mencerna lumat-lumat kemacetan indeks penelusuran pelik dari si router tensor pada saat awal periode diterjemahkan kompilasi kode semata (compile-time). Karena taktiknya tahu di awal, ini mempersilahkan sang *Compiler* menggerus dan membentuk gelombang perulangan (Loop Vectorization) secara ekstrim menggilas bentuk wujud bangun ruang raksasa si tensor tensor AI biarpun ukurannya tak beraturan dengan kecepatan 0 millidetik latensi di tengah proses.
+
+Tak berhenti sampai di situ pamer keganasannya, pusaka TileLang di akhir upacara bertugas pula memproyeksikan ukiran sandi C++ Khusus Inang Mesin Induk (Host Codegen C++) demi memotong melangkahi habis pos penjaga pintu Python yang lamban dan ruwet. Seketika berkat peretasan paksa tersebut, sistem jembatan latensi antrean waktu saat pemeriksaan CPU (CPU-side validation) anjlok sujud melorot menyusut pesat dari hitungan awal lambat puluhan mikrodetik kini tembus dibantai ke area di bawah kurun se-angka *satu (1) mikrodetik saja per tiap jentikan jarinya (per invocation)*.
+
+### **6.3.3 Paralel Berbasis Konteks (Contextual Parallelism) Spesialis Menangani Ingatan Fokus Super Panjang (Long-context Attention)**
+
+DeepSeek-V4 memanggul kemampuan tak lazim yang merindingkan nalar: kesanggupan ruang serapan ukuran muatan teks membentang hingga rekor fantasis yakni menggapai sejuta `1,000,000` rentet tebal suku kata. Segumpal bacaan antrean novel dengan angka sejuta kata panjang tersebut adalah sangat konyol, absurd serta dipastikan absolut mutlak haram bagi ukuran daya tampung fisik masuk di akal muatan kantong saku kapasitas chip dari sebongkah satu biji keping GPU saat menunaikan proses latihan. Menyiasati penggodokan rentang teks horisontal raksasa tiada tepian, sang kreator DeepSeek bermanuver mempraktikkan pengangkatan sumpah pengawal metode **Contextual Parallelism (CP) atau Paralel Konteks**, di mana ukuran urutan panjang rentang kalimat digergaji gergaji disebar merata dipecah di bawah pundak bahu sekian mesin pangkat server yang terpisah *(GPUs/Ranks)*.
+
+Petaka baru muncul. Arsitektur canggih dari otak Campuran *Hybrid Attention V4* tersebut bertumpu sangat menyembah menggunakan sistem kompresi sakti Kompresi Perhatian Renggang (*Compressed Sparse Attention / CSA*), yang aturan kerjanya memukul padat memampatkan *memori jejak pikiran / KV cache* atas dari jajaran tiap-tiap rentengan antrean kumpulan kata ke-$m$ menyusut kempes habis cuma dihargai setara sisa sebutir nilai perwakilan data masuk semata. Nah, kelakukan CSA inilah biang kerok penyebab malapetaka rintangan yang disebut Ketergantungan (Dependency problem). Logikanya begini: demi menyusun satu bongkahan keramik bata batu sandi kompresan murni, kita butuh pas utuh kumpulan sejawat antrean gerbong si-$m$ teks! Nah bagaimana bila kumpulan kelompok kerumunan keping gerbong $m$ yang lagi diincar ternyata saat itu lokasinya melenceng terbagi nyasar menyangkut menempel terserak bertengger berdiri pas di batas ujung pagar dinding perbatasan kabel penghubung di dua gedung letak area di dua GPU rank server tetangga yang berbeda?
+
+Membedah menyelsaikan kebuntuan keterasingan antar mesin ini, DeepSeek memprakarsai sistem rekayasa penataan jembatan protokol komunikasi dua tahapan (two-stage) super cepat anti lemot nan optimal kelas dewa:
+1.  **Fase 1 (Pemulihan Penambalan Garis Batas / Boundary Resolution):** Setiap aparat mesin GPU bernama rank $i$, berpatroli mengenali apakan urutan kalimat teks buntut di bagian ekor miliknya kebetulan bernasib tragis karena sisa antrean tak komplit jadi satu bata kompresi balok blok nilai entitas simpanan *KV* utuh (Incomplete block of uncompressed KV entries). Ia yang bernasib malang tersebut dengan sigap seketika menyemburkan melempar mengirim melompat terbang bungkusan paket ampas kumpulan sisa-sisa ekor kalimat (tail entries) langsung melewati selang lorong pipa batas koneksi melintas menyuapi mendarat nyampe ke server peringkat GPU rank $i+1$. Aparat Rank si $i+1$ di seberang sana lantas menjemput dan menyambungkan data ekor sumbangan yang disetor itu dengan antrean tumpukan kata pribadinya di server lokalnya agar pas kuotanya terkumpul bisa dieksekusi proses memadatkan (Compression) kompresi menjadi bersih murni, legal dari segi hukum kemurnian kebenaran hitungan matematis-nya secara jitu tak cacat koma sebutir debupun.
+2.  **Fase 2 (Penyamaan Barisan Sinkronisasi Lintas Server Semesta / Global Sync):** Komando tiupan peluit komando besar operasi `All-Gather` (Aba-aba Panggilan Kumpul Global) serentak ditiup memanggil di sepanjang pangkat peringkat penjaga sekte serdadu sistem *CP ranks* keseluruhan, mengkomando mereka meraup mengumpulkan serta merangkum semua keping entri data-data blok bata *KV* memori masa lalu yang sudah terkompresi lokal tadi membaur tersatukan menyatu membentang manjadi seutas rentetan urutan daftar gulungan pita arsip yang mutlak satu jilid bersambung (Unified sequence). Di sini sentuhan sebuah sirkuit keajaiban pengoperasi operator fusi bernama `select-and-pad` dinobatkan bergerak turun merazia membongkar kembali posisi daftar tatanan angka tersebut memanipulasi menyelaraskannya (Reorganize) agar sang *Kepala Detektif Top-K Selector* dari Perhatian Renggang (Sparse Attention) leluasa memiliki pandangan wahyu *Visi Pengelihatan Alam Semesta Global (Global visibility)* yang membentang leluasa tanpa celah kebutaan untuk melacak mencari menelusuri memindai ke belakang hingga menembus sepanjang jurang waktu catatan sejuta-kata di jejak rekaman alam bawah sadar masa lalu seutuhnya 1-juta rekam jejak token tersebut.
+
+---
+
+## **6.4 Produksi Penataan Bahan Bakar Data untuk Fondasi Pembelajaran Mentah Pra-Pelatihan (Mengkurasi Selektif Diatas 32T+ Potong Rangkaian Suku Kata)**
+
+Gedung pabrik giling rentetan alur sistem pipa transmisi saluran infrastruktur raksasa yang dijelaskan merinding sedari tadi itu hakikat sejatinya mengabdi cuma menunaikan satu fungsi suci semata: yaitu secara membabi buta nan tanpa ampun menjejalkan mencekoki aliran deras bahan baku cairan data ke perut pencernaan model algoritma otak tiruan AI kita ini. Melahirkan seri dewa rilis DeepSeek-V4, kru pengawal data di belakangnya dengan congkak pongahnya berhasil mengepak kurasi racikan sebuah gundukan timbunan buku kumpulan naskah dokumen alam semesta berkaliber luar nalar edan nan menyentil akal, yakni tak kurang dari himpunan bobot bacaan sebesar menembus tumpukan ambang angkasa melampaui raihan volume angka di luar batas: **32 Triliun lebih Kata / Token (32T+ Tokens)**.
+
+Sementara sang pemangku takhta tetap tak bergeming teguh menjaga ketat fondasi dasar corong pipa pelestarian kurasi pemilahan saluran racikan filter data saringan pusaka murni lungsuran dari pendahulu kakek moyang-nya yaitu generasi V3, untuk era V4 sang petinggi DeepSeek menyuntikkan tambahan vaksin doktrin pengamanan serangkaian prosedur hukum strategi pembersihan filter penjaring penyaring ganda pendatang baru yang jauh lebih sadis nan disiplin militer super ketat semata-mata diabdikan bertujuan mencuatkan mendongkrak elevasi daya lebat ketebalan esensi mutiara madu mutu ilmu padat *kepadatan kecerdasan logika kepintaran (intelligence density)* yang bakal diserap pada setiap inci bongkahan porsi piring naskah yang ditelan ditampung membanjiri buku saku memori si Corpus Pelatihan pra-training ini:
+
+1.  **Pemberantasan Pandemi Wabah Racun Pembodohan Model (Mitigating Model Collapse):** Begitu ledakan mesin penghasil tukang cetak LLM (AI) berserakan menjamur bereproduksi massal menjajah mewabah, lorong lorong jagad maya peramban website saat ini diyakini terlanjur terkontaminasi penuh dengan banjir najis tulisan hasil karangan sampah fiktif dari rekayasa buatan AI. Terdapat mitos nyata mengerikan bila kita salah mengumpankan data, dan malah secara tak sengaja mendidik model dewa AI di masa depan ini justru dari sisa sisa comberan rongsokan limbah muntahan dari hasil produksi model mesin bot AI masa lalu lawas yang murahan, itu artinya sang bayi AI kita dipastikan celaka bakal mengidap penyakit penyusutan kemunduran mental IQ cacat kemerosotan (degradation) cacat seumur hidup terperosok mundur tak bisa pulih sembuh tertolong yang dikutuk dengan julukan *kehancuran model (model collapse)*. DeepSeek memburu ganas tanpa pandang bulu meluncurkan bala bantuan agresif persenjataan sepasukan detektif algoritma sortir gabungan dari penyisir tipe logika heuristik dan penjaga palang pintu saringan berbasis robot tipe penjawab klasifikator, guna melakukan kerja melacak, mendeteksi menciduk, menghapus sikat mencabut membongkar basmi melepaskan paksa lalu menghanguskan membakar semua hasil panen karya teks dari gerombolan sindikat kloning pengerjaan masal (batched content), karya palsu mesin otomatis karangan (auto-generated text), serta tulisan kaku jiplakan templat (templated text content), dari lahan lautan sumber sedotan kolam jaring air data mereka di muka bumi (web-sourced data).
+2.  **Pemaksaan Pengistimewaan Santapan Nutrisi Porsi Khusus Membaca Gulungan Teks Panjang (Long-Document Prioritization):** Demi memberikan latihan beban berat *gym* sesungguhnya kepada tulang otot punggung pilar sistem infrastruktur dewa pembelah rank Paralel Kontekstual Sejuta Teks (*1-Million token Contextual Parallelism*), tim penyeleksi pakar ahli nutrisi asupan pangan DeepSeek meletakkan doktrin penekanan istimewa porsi wajib prioritas tak terbayangkan kepada kebudayaan kurasi penyediaan naskah naskah piagam porsi manuskrip utuh dokumen ber-tebal raksasa. Mereka sangat merajakan menaruh takzim perlakuan anak emas dengan memberikan porsi kuota prioritas terbesar (heavy prioritization) untuk mendedikasikan porsi lahapan mutlak untuk meraup langsung utuh menyedot satu bundel paket komplit isi total buku paket cetak buku diktat tebal text book literatur (entire textbooks), lembaran-lembaran manuskrip jurnal ilmiah skala raksasa yang panjang dan masif penelitian ilmunya, bergepok laporan riset korporat teknis berbobot komprehensif panjang padat gizi, hingga menghirup lautan keping kepingan rak gudang lemari penyimpanan sandi program perbendaharaan kode sumber (code repositories) di jagad maya yang panjangnya bagai merobek batas dimensi halaman aslinya. Strategi pemaksaan porsi santapan suplemen keras begini digaransi agar wawasan alam nalar berfikir Sang model AI kelak *murni menyerap insting* murni keotentikan esensi sifat nalar cara *bernalar jangka panjang rentang pemikiran per-keping sejauh memandang horison semesta wawasan panjang* nan sakral (true long-horizon reasoning), serta mencegah agar mesin ini luput tidak terjebak dari kemunduran taktik cara otak gampang sempit cetek yang mana sekedar cuma menghafalkan menyontek ingatan secuil-secuil porsi kotak penggalan pengintaian yang ukurannya terpecah pecah pendek pendek sempit kecil seukuran konteks jendela cuilan yang tak berkaitan bersambungan (short, disjointed context windows) di otak memorinya.
+3.  **Memasukkan Suntikan Paksa Dosis Logika Agen Pakar Pekerja Cerdas Ke Pertengahan Siklus Pelatihan Dasar (Agentic Mid-Training Data):** DeepSeek dengan anggunnya mulus tiada jahitan mengelas menempel mengawinkan menancapkan resep cairan benih racikan asupan bibit mutiara gizi cairan sumber data suci berkelas bintang mutu tinggi berjenis DNA peninggalan "agen intelijen / kepakaran" (berwujud transkrip jejak catatan sejarah pemakaian pelacakan jejak rute pola memakai mesin alat-tools/tool-use trajectories, jurnal manuskrip layar papan ketik hitam di komputer log aktivitas terminal-terminal logs, dan catatan panjang riwayat sejarah pelacakan langkah perbaikan debugging saat program berlari jalan / execution traces). Keseluruhan resep gizi dewa langka tersebut mereka tembakkan tancapkan infus dipompakan menusuk disuntik lurus mentah-mentah membabi buta membombardir telak memasukinya jatuh mendarat terserap telan persis persis tertuang di etape titik di perlintasan tahapan tengah hingga detik detik penutupan akhir penutupan menjelang pintu tutup siklus proses inkubator pemadatan pengasuhan pengeraman pendewasaan diri fase proses pembibitan otak murni sang embrio model yang disebut dengan fase pra-pelatihan yang sangat teramat dasar (foundational pre-training phase). Ritual ekstrem nekat curi umur tersebut memukul meroketkan mencuat tajam melenting loncat memoles drastis keampuhan dan kelincahan refleks kejeniusan naluri daya magis asli keturunan kecerdasan otak buatan kepintaran native bawaan si mesin ini kelak saat memproses menjahit baris pengetikan program koding (native coding) dan kepiawaian ketangkasan dalam tata rias etika tutur kata membalas sapaan merespon obrolan manusia saat berinteraksi (interactive capabilities) – dan menakjubkannya semua itu *sukses terjadi dan selesai diasah duluan jauh terjadi bahkan sebelum* ia sendiri benar-benar resmi menyentuh memasuki masa fase asrama gemblengan orientasi bimbingan doktrin penjara tahapan asuhan perbaikan pembinaan pasca-pelatihan alias masa (post-training alignment phase).
+
+---
+
+## **6.5 Ringkasan**
+
+*   **Manifold-Constrained Hyper-Connections (mHC) / Sambungan Ekstra Terikat Pada Bangun Ruang Khusus:** Sebuah sistem penyambung antar jaringan yang bertugas murni membuang dan melengserkan paksa teknologi penyambung jaringan sisa generasi standar lawas, dengan taktik melempar, menampar dan menyekap matriks (papan angka) pemeta jalur arus sisa agar nyangkut terkunci mutlak ke dalam ukuran kerangkeng bentuk geometri dinding ruang bangun sang *(Birkhoff polytope)*, mengandalkan cambukan keras paksa penjewer rumus algoritma magis *(Sinkhorn-Knopp algorithm)*. Pengekangan ini dengan keras memberikan garansi bersumpah secara tertulis hukum matematis yang menjamin takaran porsi batas spektrum *(spectral norm)* angka-nya tidak mungkin sudi berani lewat menembus bocor angka sakral $\le 1$, seketika langsung menghidupkan restorasi perbaikan sifat warisan identitas pemetaan leluhur asalnya (identity mapping property), sekaligus manjur paten mencegah melenyapkan sumbu api dari potensi tragedi meledaknya malapetaka amukan gelombang kelebihan data *(gradient explosion)* di sela sela palung kedalaman raksasa jaringan susunan ribuan saraf.
+*   **The Muon Optimizer / Sang Pengoptimal Cerdas MUON:** Resmi membubarkan sang juara bertahan sejati yaitu dewa memori boros AdamW dengan secara kejam mempensiunkan ia secara terpaksa tanpa honor, guna menukar dan digantikan masuknya nafas baru penggerak bernama Momentum Disikukan-Orthogonal diolah dan digodok dipoles memakai sentuhan racikan putaran rumusan repetisi canggih *(Newton-Schulz iterations)*. Tim DeepSeek membidani khusus menemukan lahir meracik campuran racikan iterasi tahapan hibrida 10-Langkah silang baur ramuan silangan porsi spesifik dari nilai angka koefisien tujuannya untuk mereparasi siku membentuk memahat lekuk memoles secara total wujud absolut matriks papan angka tegoran pembaruannya *(update matrix)* sehingga mulus meng-orthogonal utuh, mencetak rekor sensasional luar biasa super instan untuk mendongkrak tarikan laju balap ketuntasan meluncur arah kecepatan belajar AI menyerap pemahaman dan mendarat mulus lebih pesat *(convergence speed)*.
+*   **Hybrid ZeRO Strategy / Siasat Hibrida Gabungan Pelit Distribusi ZeRO:** Sebongkah susunan taktik persekongkolan rekayasa alokasi tatanan desain pengaturan sistem gotong royong bagi kerja alat GPU komputer *(custom distributed strategy)* secara khusus hanya didesain dan diukir semata dipersembahkan hanya buat kenyamanan melayani jalan kerja operasional mesin sang MUON semata. Membawa mengusung persenjataan andalan mengerahkan jurus *(knapsack algorithm / strategi pencuri bawa tas punggung isi batu berat)* demi pengangkutan paket papan keping bobot yang berotot penuh utuh *(dense parameters)* plus kelicikan perataan menggilas datar para unit spesialis individual Ahli MoE yang dulunya acuh menolak terikat *(flattening independent MoE experts)*. Muslihat lincah nan cerdas itu memberikan keleluasaan akses jalan bagi model sistem pelatih raksasa sang mesin agar bisa mengunyah dan mengeksekusi rumus perhitungan silang komputasi rumit papan matriks utuh gajah meski wujud realitanya kepingnya sudah dicacah dipecah tersebar pecah remuk di kluster rakitan server rongsok GPU. Sistem memampatkan menekan memiskinkan kualitas kualitas angka tegoran pelaporan transfer dengan pesan rendahan paket format *Low-precision BF16 All-to-All communication* sanggup tanpa ampun sukses mengiris separuh angka ongkos pemborosan pajaknya yang harus dilalu lintas kirimkan disetor jaringan *(network overhead)*.
+*   **Fine-Grained Expert Parallelism Overlap / Menyelundup Susup Tumpang Tindih Cerdik Jalur Paralel Pakar Tingkat Detail Kecil:** Berkat mengutus penjadwalan taktik intel merangkai jadwal mengawasi susunan atrean dan antrean pemberangkatan pos serta proses menyortir balik gabung tugas Ahli *(MoE dispatch and combine operations)* diatur ditata rapi secara brilian dipaksa memecahkannya menyerbu nyicil nyusup jadi ke segerombol ombak-ombak kloter kecil ("waves"), DeepSeek secara rapih gaib sukses membungkus ngumpetin menghilangkan menghapus tanpa jejak aib kecacatan waktu kemacetan menunggu pengiriman pelaporan memori letensi jaringan network ngumpet ditimpa di sela bayangan kesibukan di sela keras keringat komputasi pengerjaan perhitungan pengeruk perkalian rumus angka sang penggarap (matrix multiplication computation), menaati secara kaku mengkultuskan dengan taat doktrin kaku perhitungan batas hukum ambang toleransi nilai matematikan (FLOPs/Byte threshold) demi memaksimalkan porsi raupan merampok batas tertinggi tingkat serapan daya kerja optimal maksimal atas setiap perasan peluh dari keringat jeroan *hardware* unit peralatan perangkat keras.
+*   **TileLang & Dewa Pemikir Z3 SMT:** Tumpukan pabrik otak pemrograman pemroses kernel berkelas dewa bongsor super gajah *(Mega-kernels)* dilukis ditulis diukir dirajut dengan tangan lewat secarik sejenis wujud alat cetakan penterjemah cetak biru buatan sendiri ciptaan rumah pabrikan pribadi yang di-label sandi Domain khusus (DSL), dilindungi diasuransikan dijaga dengan bantuan perisai jaminan analisis tebakan kepastian akurasi angka tunggal logika teka-teki misteri matematika murni *(formal integer analysis)*, melahirkan ukiran tempaan program terjemahan kaku bahas induk mesin robot C++ tulen *(C++ host code)* sekelas kilat dewa nir-ongkos sisa yang tiada pajaknya memori lagi (zero-overhead) tujuannya satu semata buat tanpa ampun meludahi melangkahi menghabisi dan menggiling habis melenyapkan tuntas kelemahan botol kemacetan penghambat laju kecepatan waktu yang dilambatkan gara-gara birokrasi ke-leletan si Ular Python.
+*   **Contextual Parallelism (CP) / Sistem Paralel Pemrosesan Fokus Wawasan Konteks Bacaan Teks Paralel:** Insinyur teknisi dewa perancang DeepSeek meramu memprakarsai protokol jembatan protokol komunikasi antarmuka dua lajur tahap (two-stage network communication protocol) tujuannya tidak lain hanya buat menyapu dan membasuh menjahit suci lurus menyelesaikan segala kecacatan cacat celah menambal memori kompresi patah kepotong (*sequence compression* (CSA/HCA)) yang kebetulan lokasi koordinat-nya ambyar tertinggal berserak di atas garis tepi garis tebing tapal batas pembatas antar tetangga kamar batas negara seberang wilayah kartu-kartu ruang GPU server. Strategi taktik perang revolusioner nan ajaib gila ini sukses menobatkan mereka berhasil menjebol merobek membuka paksa tirai portal keabadian untuk meraba fisik dan merealisasikan kemungkinan niscaya impian merakit pelatihan program belajar AI yang kepekaan ruang sorot fokus serapan mata nalarnya tajam mencakup bentangan jembatan rentang rekor rekor mutlak: pelatihan membaca bacaan sekelas *1-Juta teks rangkaian urutan Suku Kata yang mustahil kini jadi keniscayaan wujud di alam fisik dunia ini*.
+*   **Pra Pelatihan 32 Triliun Suku Kata Pembentuk Nalar Data / 32 Trillion Token Pre-Training:** Dewa V4 digodok matang di kawah asuhan inkubasi disuapi disusui nutrisi disuguhkan tontonan sajian makanan dihidangkan piring racikan lautan samudra mahakarya perpustakaan pustaka buku catatan himpunan pustaka masif alam semesta luar biasa (massive dataset) yang sebelum diletakkan di atas piring makannya sudah dikorek-korek dicungkil dan diayak disaring disortir di-kurasi teliti saksama tingkat cermat dan perfeksionis level dewa, bersama-sama bersanding menerapkan pisau tajam pemilahan ganda aturan seleksi saringan sangat sadis bin ketat untuk membasmi segala tulisan virus penyakit jiplakan hasil panen buatan limbah AI (*AI-generated text filtering*), memberikan tekanan membesarkan sanjungan tinggi yang memuja takhta mengutamakan dewa pemanjaan pada dokumen-dokumen manuskrip kitab suci raksasa ekstrim berkepanjangan (extreme long-documents), tak lupa menjahit memasukkan sisipan merangkum rekaman jurnal jurnal arsip log catatan tindakan aktif si Agen agen AI peretas *(agentic logs)* diusapkan di lapis sela waktu senggang pertengahan kurikulum belajar madya si mesin AI.
