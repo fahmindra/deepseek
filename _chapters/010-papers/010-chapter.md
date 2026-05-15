@@ -9,7 +9,7 @@ layout: chapter
 ## Abstract
 We present a preview version of DeepSeek-V4 series, including two strong Mixture-of-Experts (MoE) language models — DeepSeek-V4-Pro with 1.6T parameters (49B activated) and DeepSeek-V4-Flash with 284B parameters (13B activated) — both supporting a context length of one million tokens. DeepSeek-V4 series incorporate several key upgrades in architecture and optimization: (1) a hybrid attention architecture that combines Compressed Sparse Attention (CSA) and Heavily Compressed Attention (HCA) to improve long-context efficiency; (2) Manifold-Constrained Hyper-Connections (mHC) that enhance conventional residual connections; (3) and the Muon optimizer for faster convergence and greater training stability. We pre-train both models on more than 32T diverse and high-quality tokens, followed by a comprehensive post-training pipeline that unlocks and further enhances their capabilities. DeepSeek-V4-Pro-Max, the maximum reasoning effort mode of DeepSeek-V4-Pro, redefines the state-of-the-art for open models, outperforming its predecessors in core tasks. Meanwhile, DeepSeek-V4 series are highly efficient in long-context scenarios. In the one-million-token context setting, DeepSeek-V4-Pro requires only 27% of single-token inference FLOPs and 10% of KV cache compared with DeepSeek-V3.2. This enables us to routinely support one-million-token contexts, thereby making long-horizon tasks and further test-time scaling more feasible. The model checkpoints are available at https://huggingface.co/collections/deepseek-ai/deepseek-v4.
 
-> 🖼️ **[Placeholder Gambar: Figure 1]**
+> ![alt text](image.png)
 > *Figure 1 | Left: benchmark performance of DeepSeek-V4-Pro-Max and its counterparts. Right: inference FLOPs and KV cache size of DeepSeek-V4 series and DeepSeek-V3.2.*
 
 ---
@@ -55,21 +55,21 @@ As shown in Figure 2, DeepSeek-V4 series incorporate Manifold-Constrained Hyper-
 
 **Standard Hyper-Connections.** The standard HC expands the width of the residual stream by a factor of $n_{hc}$. Specifically, the shape of the residual stream is expanded from $\mathbb{R}^d$ to $\mathbb{R}^{n_{hc} \times d}$, where $d$ is the hidden size of the actual layer input. Let $X_l = [\mathbf{x}_{l,1}; \dots ; \mathbf{x}_{l,n_{hc}}]^T \in \mathbb{R}^{n_{hc} \times d}$ be the residual state before the $l$-th layer. HC introduces three linear mappings: an input mapping $A_l \in \mathbb{R}^{1 \times n_{hc}}$, a residual transformation $B_l \in \mathbb{R}^{n_{hc} \times n_{hc}}$, and an output mapping $C_l \in \mathbb{R}^{n_{hc} \times 1}$. The update of the residual state is then formulated as:
 
-$$X_{l+1} = B_l X_l + C_l \mathcal{F}_l(A_l X_l), \quad (1)$$
+$$X_{l+1} = B_l X_l + C_l \mathcal{F}_l(A_l X_l), \tag {1}$$
 
 where $\mathcal{F}_l$ denotes the $l$-th layer (e.g., an MoE layer), whose input and output shapes are both $\mathbb{R}^d$. Note that the actual layer input $A_l X_l \in \mathbb{R}^d$ is also $d$-dimensional, so the expanded residual width does not influence the design of the inner layers. HC decouples the residual width from the actual hidden size, offering a complementary scaling axis with minimal computational overhead, as $n_{hc}$ is typically much smaller than the hidden size $d$. However, even though HC has demonstrated potential in improving model performance, we find that the training will frequently exhibit numerical instability when stacking multiple layers, which hinders the scaling of HC.
 
 **Manifold-Constrained Residual Mapping.** The core innovation of mHC is to constrain the residual mapping matrix $B_l$ to the manifold of doubly stochastic matrices (the Birkhoff polytope) $\mathcal{M}$, and thus enhance the stability of signal propagation across layers:
 
-$$B_l \in \mathcal{M} := \{M \in \mathbb{R}^{n \times n} \mid M\mathbf{1}_n = \mathbf{1}_n, \mathbf{1}_n^T M = \mathbf{1}_n^T, M \ge 0\}. \quad (2)$$
+$$B_l \in \mathcal{M} := \{M \in \mathbb{R}^{n \times n} \mid M\mathbf{1}_n = \mathbf{1}_n, \mathbf{1}_n^T M = \mathbf{1}_n^T, M \ge 0\}. \tag {2}$$
 
 This constraint ensures that the spectral norm of the mapping matrix $\|B_l\|_2$ is bounded by 1, so the residual transformation is non-expansive, which increases the numerical stability during both the forward pass and backpropagation. Besides, the set $\mathcal{M}$ is closed under multiplication, which guarantees stability in the scenarios of deep stacks of mHC. In addition, the input transformation $A_l$ and output transformation $C_l$ are also constrained to be non-negative and bounded via a Sigmoid function to avoid the risk of signal cancellation.
 
 **Dynamic Parameterization.** The parameters of three linear mappings are dynamically generated, which are decomposed into a dynamic (input-dependent) component and a static (input-independent) component. Given the input $X_l \in \mathbb{R}^{n_{hc} \times d}$, it is first flattened and normalized: $\hat{X}_l = \text{RMSNorm}(\text{vec}(X_l)) \in \mathbb{R}^{1 \times n_{hc} d}$. Then, we follow the conventional HC to generate the unconstrained raw parameters $\tilde{A}_l \in \mathbb{R}^{1 \times n_{hc}}$, $\tilde{B}_l \in \mathbb{R}^{n_{hc} \times n_{hc}}$, and $\tilde{C}_l \in \mathbb{R}^{n_{hc} \times 1}$:
 
-$$\tilde{A}_l = \alpha_l^{\text{pre}} \cdot (\hat{X}_l W_l^{\text{pre}}) + S_l^{\text{pre}}, \quad (3)$$
-$$\tilde{B}_l = \alpha_l^{\text{res}} \cdot \text{Mat}(\hat{X}_l W_l^{\text{res}}) + S_l^{\text{res}}, \quad (4)$$
-$$\tilde{C}_l = \alpha_l^{\text{post}} \cdot (\hat{X}_l W_l^{\text{post}})^T + S_l^{\text{post}}, \quad (5)$$
+$$\tilde{A}_l = \alpha_l^{\text{pre}} \cdot (\hat{X}_l W_l^{\text{pre}}) + S_l^{\text{pre}}, \tag {3}$$
+$$\tilde{B}_l = \alpha_l^{\text{res}} \cdot \text{Mat}(\hat{X}_l W_l^{\text{res}}) + S_l^{\text{res}}, \tag{4}$$
+$$\tilde{C}_l = \alpha_l^{\text{post}} \cdot (\hat{X}_l W_l^{\text{post}})^T + S_l^{\text{post}}, \tag {5}$$
 
 where $W_l^{\text{pre}}, W_l^{\text{post}} \in \mathbb{R}^{n_{hc} d \times n_{hc}}$ and $W_l^{\text{res}} \in \mathbb{R}^{n_{hc} d \times n_{hc}^2}$ are learnable parameters for generating the dynamic components; $\text{Mat}(\cdot)$ reshapes a vector of size $1 \times n_{hc}^2$ into a matrix of size $n_{hc} \times n_{hc}$; $S_l^{\text{pre}} \in \mathbb{R}^{1 \times n_{hc}}$, $S_l^{\text{post}} \in \mathbb{R}^{n_{hc} \times 1}$, and $S_l^{\text{res}} \in \mathbb{R}^{n_{hc} \times n_{hc}}$ are learnable static biases; and $\alpha_l^{\text{pre}}, \alpha_l^{\text{res}}, \alpha_l^{\text{post}} \in \mathbb{R}$ are learnable gating factors initialized to small values.
 
