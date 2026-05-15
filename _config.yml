@@ -1,11 +1,11 @@
 remote_theme: jasongrimes/jekyll-chapterbook
 
-title: Build DeepSeek from Scratch
-longtitle: Build DeepSeek from Scratch — A Hands-on Guide
+title: DeepSeek dari Dasar
+longtitle: DeepSeek dari Dasar — Panduan Lengkap
 author: Fahmi Indra Setiawan
 email: fahmindra@gmail.com
 description: >
-  A comprehensive hands-on guide covering every major DeepSeek innovation — from KV Cache and MLA to MoE, MTP, FP8, DSA, mHC, Engram, and the million-token DeepSeek-V4 hybrid attention architecture.
+  DeepSeek
 
 # If baseurl_canonical is set, 
 # a <link rel="canonical"> tag will be added to the head of each page,
@@ -39,7 +39,7 @@ bookcrumbs:
 # Links shown above the TOC in the sidebar
 # All "url" variables should have a leading slash.
 sidebar_nav_top:
-- label: Build DeepSeek from Scratch
+- label: DeepSeek dari Dasar
   url: /index.html
 
 # Links shown below the TOC in the sidebar
