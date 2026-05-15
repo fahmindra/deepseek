@@ -9,7 +9,7 @@ layout: chapter
 ## Abstract
 We present a preview version of DeepSeek-V4 series, including two strong Mixture-of-Experts (MoE) language models — DeepSeek-V4-Pro with 1.6T parameters (49B activated) and DeepSeek-V4-Flash with 284B parameters (13B activated) — both supporting a context length of one million tokens. DeepSeek-V4 series incorporate several key upgrades in architecture and optimization: (1) a hybrid attention architecture that combines Compressed Sparse Attention (CSA) and Heavily Compressed Attention (HCA) to improve long-context efficiency; (2) Manifold-Constrained Hyper-Connections (mHC) that enhance conventional residual connections; (3) and the Muon optimizer for faster convergence and greater training stability. We pre-train both models on more than 32T diverse and high-quality tokens, followed by a comprehensive post-training pipeline that unlocks and further enhances their capabilities. DeepSeek-V4-Pro-Max, the maximum reasoning effort mode of DeepSeek-V4-Pro, redefines the state-of-the-art for open models, outperforming its predecessors in core tasks. Meanwhile, DeepSeek-V4 series are highly efficient in long-context scenarios. In the one-million-token context setting, DeepSeek-V4-Pro requires only 27% of single-token inference FLOPs and 10% of KV cache compared with DeepSeek-V3.2. This enables us to routinely support one-million-token contexts, thereby making long-horizon tasks and further test-time scaling more feasible. The model checkpoints are available at https://huggingface.co/collections/deepseek-ai/deepseek-v4.
 
-> ![alt text](image.png)
+> ![DeepSeek-V4-Pro-Max benchmark performance and inference FLOPs and KV cache size](https://github-production-user-asset-6210df.s3.amazonaws.com/58066358/592884593-f483647e-5f5b-4b13-ad1d-428f28f2ff72.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260515%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260515T035354Z&X-Amz-Expires=300&X-Amz-Signature=209278804f0a9defaed9e5d826b33cf0fb67016c8ec9bcdf87492e5be5822941&X-Amz-SignedHeaders=host&response-content-type=image%2Fpng)
 > *Figure 1 | Left: benchmark performance of DeepSeek-V4-Pro-Max and its counterparts. Right: inference FLOPs and KV cache size of DeepSeek-V4 series and DeepSeek-V3.2.*
 
 ---
@@ -36,7 +36,7 @@ The post-training pipeline of DeepSeek-V4 series features a two-stage paradigm: 
 *   **Long-Context:** DeepSeek-V4-Pro-Max delivers strong results on synthetic and real use cases with a 1-million-token context window, surpassing even Gemini-3.1-Pro on academic benchmarks.
 *   **DeepSeek-V4-Pro v.s. DeepSeek-V4-Flash:** DeepSeek-V4-Flash-Max exhibits lower performance in knowledge evaluations due to its smaller parameter scale. However, it achieves comparable results on reasoning tasks when allocated a larger thinking budget. In agent evaluations, while DeepSeek-V4-Flash-Max matches the performance of DeepSeek-V4-Pro-Max on several benchmarks, it still trails its larger counterpart on more complex, high-difficulty tasks.
 
-> ![alt text](image-1.png)
+> ![Overall architecture of DeepSeek-V4 series](https://github-production-user-asset-6210df.s3.amazonaws.com/58066358/592885825-d73cfbb4-05e6-4c60-a9de-82808a463b1b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260515%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260515T035448Z&X-Amz-Expires=300&X-Amz-Signature=103f548a36fd08366628ac56c017802649f45e8099e3ac1328f81145755f48e1&X-Amz-SignedHeaders=host&response-content-type=image%2Fpng)
 > *Figure 2 | Overall architecture of DeepSeek-V4 series. We use hybrid CSA (Compressed Sparse Attention) and HCA (Heavily Compressed Attention) for attention layers, DeepSeekMoE for feed-forward layers, and strengthen conventional residual connections with mHC.*
 
 ## 2. Architecture
@@ -68,7 +68,9 @@ This constraint ensures that the spectral norm of the mapping matrix $\|B_l\|_2$
 **Dynamic Parameterization.** The parameters of three linear mappings are dynamically generated, which are decomposed into a dynamic (input-dependent) component and a static (input-independent) component. Given the input $X_l \in \mathbb{R}^{n_{hc} \times d}$, it is first flattened and normalized: $\hat{X}_l = \text{RMSNorm}(\text{vec}(X_l)) \in \mathbb{R}^{1 \times n_{hc} d}$. Then, we follow the conventional HC to generate the unconstrained raw parameters $\tilde{A}_l \in \mathbb{R}^{1 \times n_{hc}}$, $\tilde{B}_l \in \mathbb{R}^{n_{hc} \times n_{hc}}$, and $\tilde{C}_l \in \mathbb{R}^{n_{hc} \times 1}$:
 
 $$\tilde{A}_l = \alpha_l^{\text{pre}} \cdot (\hat{X}_l W_l^{\text{pre}}) + S_l^{\text{pre}}, \tag {3}$$
+
 $$\tilde{B}_l = \alpha_l^{\text{res}} \cdot \text{Mat}(\hat{X}_l W_l^{\text{res}}) + S_l^{\text{res}}, \tag{4}$$
+
 $$\tilde{C}_l = \alpha_l^{\text{post}} \cdot (\hat{X}_l W_l^{\text{post}})^T + S_l^{\text{post}}, \tag {5}$$
 
 where $W_l^{\text{pre}}, W_l^{\text{post}} \in \mathbb{R}^{n_{hc} d \times n_{hc}}$ and $W_l^{\text{res}} \in \mathbb{R}^{n_{hc} d \times n_{hc}^2}$ are learnable parameters for generating the dynamic components; $\text{Mat}(\cdot)$ reshapes a vector of size $1 \times n_{hc}^2$ into a matrix of size $n_{hc} \times n_{hc}$; $S_l^{\text{pre}} \in \mathbb{R}^{1 \times n_{hc}}$, $S_l^{\text{post}} \in \mathbb{R}^{n_{hc} \times 1}$, and $S_l^{\text{res}} \in \mathbb{R}^{n_{hc} \times n_{hc}}$ are learnable static biases; and $\alpha_l^{\text{pre}}, \alpha_l^{\text{res}}, \alpha_l^{\text{post}} \in \mathbb{R}$ are learnable gating factors initialized to small values.
@@ -76,6 +78,7 @@ where $W_l^{\text{pre}}, W_l^{\text{post}} \in \mathbb{R}^{n_{hc} d \times n_{hc
 **Applying Parameter Constraints.** After obtaining the unconstrained raw parameters $\tilde{A}_l, \tilde{B}_l, \tilde{C}_l$, we then apply constraints described earlier to them to enhance the numerical stability. To be specific, for the input and output mappings, we employ a Sigmoid function $\sigma(\cdot)$ to ensure their non-negativity and boundedness:
 
 $$A_l = \sigma(\tilde{A}_l), \tag {6}$$
+
 $$C_l = 2\sigma(\tilde{C}_l). \tag {7}$$
 
 As for the residual mapping $\tilde{B}_l$, we project it onto the manifold of doubly stochastic matrices $\mathcal{M}$. This is achieved by the Sinkhorn-Knopp algorithm, which first applies an exponential function to $\tilde{B}_l$ to ensure positivity, getting $M^{(0)} = \exp(\tilde{B}_l)$, and then iteratively performs column and row normalization:
@@ -84,7 +87,7 @@ $$M^{(t)} = \mathcal{T}_r(\mathcal{T}_c(M^{(t-1)})), \tag {8}$$
 
 where $\mathcal{T}_r$ and $\mathcal{T}_c$ denote row and column normalization, respectively. This iteration converges to a constrained doubly stochastic matrix $B_l = M^{(t_{\max})}$. We choose $t_{\max} = 20$ as a practical value.
 
-> ![alt text](image-2.png)
+> ![alt text](https://github-production-user-asset-6210df.s3.amazonaws.com/58066358/592886347-1c84266e-c68f-4459-8b78-78e76182bca4.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260515%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260515T035618Z&X-Amz-Expires=300&X-Amz-Signature=d5ef0614a43579d2b79b7ad1dcc02623ac3bded0fb563d6441dfa6248dc4636d&X-Amz-SignedHeaders=host&response-content-type=image%2Fpng)
 > *Figure 3 | Core architectures of CSA. It compresses the number of KV entries to $\frac{1}{m}$ times, and then applies DeepSeek Sparse Attention for further acceleration. Additionally, a small set of sliding window KV entries is combined with the selected compressed KV entries to enhance local fine-grained dependencies.*
 
 ### 2.3. Hybrid Attention with CSA and HCA
@@ -98,11 +101,13 @@ The core architecture of CSA is illustrated in Figure 3, which first compresses 
 **Compressed Key-Value Entries.** Let $H \in \mathbb{R}^{n \times d}$ be a sequence of input hidden states, where $n$ is the sequence length and $d$ is the hidden size. CSA first computes two series of KV entries $C^a, C^b \in \mathbb{R}^{n \times c}$ and their corresponding compression weights $Z^a, Z^b \in \mathbb{R}^{n \times c}$, where $c$ is the head dimension:
 
 $$C^a = H \cdot W^{aKV}, \quad C^b = H \cdot W^{bKV}, \tag {9}$$
+
 $$Z^a = H \cdot W^{aZ}, \quad Z^b = H \cdot W^{bZ}, \tag {10}$$
 
 where $W^{aKV}, W^{bKV}, W^{aZ}, W^{bZ} \in \mathbb{R}^{d \times c}$ are trainable parameters. Next, each $m$ KV entries in $C^a$ and $C^b$ will be compressed into one entry according to their compression weights and learnable positional biases $B^a, B^b \in \mathbb{R}^{m \times c}$, producing $C^{\text{Comp}} \in \mathbb{R}^{\frac{n}{m} \times c}$. Each compressed entry $C^{\text{Comp}}_i \in \mathbb{R}^c$ is computed by
 
 $$[S^a_{mi : m(i+1)-1}; S^b_{m(i-1) : mi-1}] = \text{Softmax}_{\text{row}} ([Z^a_{mi : m(i+1)-1} + B^a; Z^b_{m(i-1) : mi-1} + B^b]), \tag {11}$$
+
 $$C^{\text{Comp}}_i = \sum_{j=mi}^{m(i+1)-1} S^a_j \odot C^a_j + \sum_{j=m(i-1)}^{mi-1} S^b_j \odot C^b_j, \tag {12}$$
 
 where $\odot$ denotes the Hadamard product; $\text{Softmax}_{\text{row}}(\cdot)$ denotes the softmax operation along the row dimension, which performs normalization across the total of $2m$ elements from both $Z^a$ and $Z^b$. When $i=0$, $Z^b_{m(i-1) : mi-1}$ is padded with negative infinity and $C^b_{m(i-1) : mi-1}$ is padded with zeros. Note that each $C^{\text{Comp}}_i$ is derived from $2m$ KV entries, but the indexes of $C^b$ used for $C^{\text{Comp}}_i$ and the indexes of $C^a$ used for $C^{\text{Comp}}_{i-1}$ are overlapped. Therefore, CSA in fact compresses the sequence length to $\frac{1}{m}$ times.
@@ -110,6 +115,7 @@ where $\odot$ denotes the Hadamard product; $\text{Softmax}_{\text{row}}(\cdot)$
 **Lightning Indexer for Sparse Selection.** After obtaining the compressed KV entries $C^{\text{Comp}}$, CSA applies the DSA strategy to select top-k compressed KV entries for core attention. First, CSA performs the same compression operation used for $C^{\text{Comp}}$ to get compressed indexer keys $K^{\text{IComp}} \in \mathbb{R}^{\frac{n}{m} \times c^I}$, where $c^I$ is the indexer head dimension. Then, for a query token $t$, we produce the indexer queries $\{\mathbf{q}^I_{t,1}; \mathbf{q}^I_{t,2}; ...; \mathbf{q}^I_{t,n^I_h}\}$ in a low-rank manner:
 
 $$c^Q_t = \mathbf{h}_t \cdot W^{DQ}, \tag {13}$$
+
 $$[\mathbf{q}^I_{t,1}; \mathbf{q}^I_{t,2}; ...; \mathbf{q}^I_{t,n^I_h}] = \mathbf{q}^I_t = c^Q_t \cdot W^{IUQ}, \tag {14}$$
 
 where $\mathbf{h}_t \in \mathbb{R}^d$ is the input hidden state of the query token $t$; $c^Q_t \in \mathbb{R}^{d_c}$ is the compressed latent vector for queries; $d_c$ denotes the query compression dimension; $n^I_h$ denotes the number of indexer query heads; $W^{DQ} \in \mathbb{R}^{d \times d_c}$ and $W^{IUQ} \in \mathbb{R}^{d_c \times c^I n^I_h}$ are the down-projection and up-projection matrices for indexer queries, respectively. Next, the index score $I_{t,s} \in \mathbb{R}$ between the query token $t$ and a preceding compressed block $s$ ($s < \text{Floor}(\frac{t}{m})$) is computed by
@@ -121,7 +127,7 @@ where $W^{iw} \in \mathbb{R}^{d \times n^I_h}$ is a learnable matrix; $w^I_{t,h}
 
 $$C^{\text{SprsComp}}_t = \left\{ C^{\text{Comp}}_s \mid I_{t,s} \in \text{Top-k}(I_{t,:}) \right\}. \tag {17}$$
 
-> ![alt text](image-3.png)
+> ![Core architectures of HCA](https://github-production-user-asset-6210df.s3.amazonaws.com/58066358/592886804-325c12d0-033b-47f1-9fe5-d9882e41ed95.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260515%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260515T035810Z&X-Amz-Expires=300&X-Amz-Signature=88fed119f4f232a05e83dcf244876613bc9518d4c063dfcab2fadb7da4980579&X-Amz-SignedHeaders=host&response-content-type=image%2Fpng)
 > *Figure 4 | Core architectures of HCA. It performs heavier compression, where the KV entries of $m'$ ($\gg m$) tokens will be consolidated into one. Also, we additionally introduce a small set of sliding window KV entries to enhance local fine-grained dependencies.*
 
 **Shared Key-Value MQA.** After selecting the sparse KV entries, CSA then performs core attention in a Multi-Query Attention (MQA) (Shazeer, 2019) manner, where each compressed KV entry in $C^{\text{SprsComp}}_t$ serves as both attention key and value. To be specific, for a query token $t$, we first produce attention queries $\{\mathbf{q}_{t,1}; \mathbf{q}_{t,2}; ...; \mathbf{q}_{t,n_h}\}$ from the compressed latent vector $c^Q_t$:
