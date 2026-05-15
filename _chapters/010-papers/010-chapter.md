@@ -36,7 +36,7 @@ The post-training pipeline of DeepSeek-V4 series features a two-stage paradigm: 
 *   **Long-Context:** DeepSeek-V4-Pro-Max delivers strong results on synthetic and real use cases with a 1-million-token context window, surpassing even Gemini-3.1-Pro on academic benchmarks.
 *   **DeepSeek-V4-Pro v.s. DeepSeek-V4-Flash:** DeepSeek-V4-Flash-Max exhibits lower performance in knowledge evaluations due to its smaller parameter scale. However, it achieves comparable results on reasoning tasks when allocated a larger thinking budget. In agent evaluations, while DeepSeek-V4-Flash-Max matches the performance of DeepSeek-V4-Pro-Max on several benchmarks, it still trails its larger counterpart on more complex, high-difficulty tasks.
 
-> 🖼️ **[Placeholder Gambar: Figure 2]**
+> ![alt text](image-1.png)
 > *Figure 2 | Overall architecture of DeepSeek-V4 series. We use hybrid CSA (Compressed Sparse Attention) and HCA (Heavily Compressed Attention) for attention layers, DeepSeekMoE for feed-forward layers, and strengthen conventional residual connections with mHC.*
 
 ## 2. Architecture
@@ -75,16 +75,16 @@ where $W_l^{\text{pre}}, W_l^{\text{post}} \in \mathbb{R}^{n_{hc} d \times n_{hc
 
 **Applying Parameter Constraints.** After obtaining the unconstrained raw parameters $\tilde{A}_l, \tilde{B}_l, \tilde{C}_l$, we then apply constraints described earlier to them to enhance the numerical stability. To be specific, for the input and output mappings, we employ a Sigmoid function $\sigma(\cdot)$ to ensure their non-negativity and boundedness:
 
-$$A_l = \sigma(\tilde{A}_l), \quad (6)$$
-$$C_l = 2\sigma(\tilde{C}_l). \quad (7)$$
+$$A_l = \sigma(\tilde{A}_l), \tag {6}$$
+$$C_l = 2\sigma(\tilde{C}_l). \tag {7}$$
 
 As for the residual mapping $\tilde{B}_l$, we project it onto the manifold of doubly stochastic matrices $\mathcal{M}$. This is achieved by the Sinkhorn-Knopp algorithm, which first applies an exponential function to $\tilde{B}_l$ to ensure positivity, getting $M^{(0)} = \exp(\tilde{B}_l)$, and then iteratively performs column and row normalization:
 
-$$M^{(t)} = \mathcal{T}_r(\mathcal{T}_c(M^{(t-1)})), \quad (8)$$
+$$M^{(t)} = \mathcal{T}_r(\mathcal{T}_c(M^{(t-1)})), \tag {8}$$
 
 where $\mathcal{T}_r$ and $\mathcal{T}_c$ denote row and column normalization, respectively. This iteration converges to a constrained doubly stochastic matrix $B_l = M^{(t_{\max})}$. We choose $t_{\max} = 20$ as a practical value.
 
-> 🖼️ **[Placeholder Gambar: Figure 3]**
+> ![alt text](image-2.png)
 > *Figure 3 | Core architectures of CSA. It compresses the number of KV entries to $\frac{1}{m}$ times, and then applies DeepSeek Sparse Attention for further acceleration. Additionally, a small set of sliding window KV entries is combined with the selected compressed KV entries to enhance local fine-grained dependencies.*
 
 ### 2.3. Hybrid Attention with CSA and HCA
@@ -97,40 +97,40 @@ The core architecture of CSA is illustrated in Figure 3, which first compresses 
 
 **Compressed Key-Value Entries.** Let $H \in \mathbb{R}^{n \times d}$ be a sequence of input hidden states, where $n$ is the sequence length and $d$ is the hidden size. CSA first computes two series of KV entries $C^a, C^b \in \mathbb{R}^{n \times c}$ and their corresponding compression weights $Z^a, Z^b \in \mathbb{R}^{n \times c}$, where $c$ is the head dimension:
 
-$$C^a = H \cdot W^{aKV}, \quad C^b = H \cdot W^{bKV}, \quad (9)$$
-$$Z^a = H \cdot W^{aZ}, \quad Z^b = H \cdot W^{bZ}, \quad (10)$$
+$$C^a = H \cdot W^{aKV}, \quad C^b = H \cdot W^{bKV}, \tag {9}$$
+$$Z^a = H \cdot W^{aZ}, \quad Z^b = H \cdot W^{bZ}, \tag {10}$$
 
 where $W^{aKV}, W^{bKV}, W^{aZ}, W^{bZ} \in \mathbb{R}^{d \times c}$ are trainable parameters. Next, each $m$ KV entries in $C^a$ and $C^b$ will be compressed into one entry according to their compression weights and learnable positional biases $B^a, B^b \in \mathbb{R}^{m \times c}$, producing $C^{\text{Comp}} \in \mathbb{R}^{\frac{n}{m} \times c}$. Each compressed entry $C^{\text{Comp}}_i \in \mathbb{R}^c$ is computed by
 
-$$[S^a_{mi : m(i+1)-1}; S^b_{m(i-1) : mi-1}] = \text{Softmax}_{\text{row}} ([Z^a_{mi : m(i+1)-1} + B^a; Z^b_{m(i-1) : mi-1} + B^b]), \quad (11)$$
-$$C^{\text{Comp}}_i = \sum_{j=mi}^{m(i+1)-1} S^a_j \odot C^a_j + \sum_{j=m(i-1)}^{mi-1} S^b_j \odot C^b_j, \quad (12)$$
+$$[S^a_{mi : m(i+1)-1}; S^b_{m(i-1) : mi-1}] = \text{Softmax}_{\text{row}} ([Z^a_{mi : m(i+1)-1} + B^a; Z^b_{m(i-1) : mi-1} + B^b]), \tag {11}$$
+$$C^{\text{Comp}}_i = \sum_{j=mi}^{m(i+1)-1} S^a_j \odot C^a_j + \sum_{j=m(i-1)}^{mi-1} S^b_j \odot C^b_j, \tag {12}$$
 
 where $\odot$ denotes the Hadamard product; $\text{Softmax}_{\text{row}}(\cdot)$ denotes the softmax operation along the row dimension, which performs normalization across the total of $2m$ elements from both $Z^a$ and $Z^b$. When $i=0$, $Z^b_{m(i-1) : mi-1}$ is padded with negative infinity and $C^b_{m(i-1) : mi-1}$ is padded with zeros. Note that each $C^{\text{Comp}}_i$ is derived from $2m$ KV entries, but the indexes of $C^b$ used for $C^{\text{Comp}}_i$ and the indexes of $C^a$ used for $C^{\text{Comp}}_{i-1}$ are overlapped. Therefore, CSA in fact compresses the sequence length to $\frac{1}{m}$ times.
 
 **Lightning Indexer for Sparse Selection.** After obtaining the compressed KV entries $C^{\text{Comp}}$, CSA applies the DSA strategy to select top-k compressed KV entries for core attention. First, CSA performs the same compression operation used for $C^{\text{Comp}}$ to get compressed indexer keys $K^{\text{IComp}} \in \mathbb{R}^{\frac{n}{m} \times c^I}$, where $c^I$ is the indexer head dimension. Then, for a query token $t$, we produce the indexer queries $\{\mathbf{q}^I_{t,1}; \mathbf{q}^I_{t,2}; ...; \mathbf{q}^I_{t,n^I_h}\}$ in a low-rank manner:
 
-$$c^Q_t = \mathbf{h}_t \cdot W^{DQ}, \quad (13)$$
-$$[\mathbf{q}^I_{t,1}; \mathbf{q}^I_{t,2}; ...; \mathbf{q}^I_{t,n^I_h}] = \mathbf{q}^I_t = c^Q_t \cdot W^{IUQ}, \quad (14)$$
+$$c^Q_t = \mathbf{h}_t \cdot W^{DQ}, \tag {13}$$
+$$[\mathbf{q}^I_{t,1}; \mathbf{q}^I_{t,2}; ...; \mathbf{q}^I_{t,n^I_h}] = \mathbf{q}^I_t = c^Q_t \cdot W^{IUQ}, \tag {14}$$
 
 where $\mathbf{h}_t \in \mathbb{R}^d$ is the input hidden state of the query token $t$; $c^Q_t \in \mathbb{R}^{d_c}$ is the compressed latent vector for queries; $d_c$ denotes the query compression dimension; $n^I_h$ denotes the number of indexer query heads; $W^{DQ} \in \mathbb{R}^{d \times d_c}$ and $W^{IUQ} \in \mathbb{R}^{d_c \times c^I n^I_h}$ are the down-projection and up-projection matrices for indexer queries, respectively. Next, the index score $I_{t,s} \in \mathbb{R}$ between the query token $t$ and a preceding compressed block $s$ ($s < \text{Floor}(\frac{t}{m})$) is computed by
 
-$$[w^I_{t,1}; w^I_{t,2}; ...; w^I_{t,n^I_h}] = \mathbf{w}^I_t = \mathbf{h}_t \cdot W^{iw}, \quad (15)$$
-$$I_{t,s} = \sum_{h=1}^{n^I_h} w^I_{t,h} \cdot \text{ReLU} \left(\mathbf{q}^I_{t,h} \cdot K^{\text{IComp}}_s\right), \quad (16)$$
+$$[w^I_{t,1}; w^I_{t,2}; ...; w^I_{t,n^I_h}] = \mathbf{w}^I_t = \mathbf{h}_t \cdot W^{iw}, \tag {15}$$
+$$I_{t,s} = \sum_{h=1}^{n^I_h} w^I_{t,h} \cdot \text{ReLU} \left(\mathbf{q}^I_{t,h} \cdot K^{\text{IComp}}_s\right), \tag {16}$$
 
 where $W^{iw} \in \mathbb{R}^{d \times n^I_h}$ is a learnable matrix; $w^I_{t,h} \in \mathbb{R}$ is the weight of the $h$-th indexer head. For a query token $t$, given its index scores $I_{t,:}$, we employ a top-k selector to selectively retain a subset of compressed KV entries $C^{\text{SprsComp}}_t$ for subsequent core attention:
 
-$$C^{\text{SprsComp}}_t = \left\{ C^{\text{Comp}}_s \mid I_{t,s} \in \text{Top-k}(I_{t,:}) \right\}. \quad (17)$$
+$$C^{\text{SprsComp}}_t = \left\{ C^{\text{Comp}}_s \mid I_{t,s} \in \text{Top-k}(I_{t,:}) \right\}. \tag {17}$$
 
-> 🖼️ **[Placeholder Gambar: Figure 4]**
+> ![alt text](image-3.png)
 > *Figure 4 | Core architectures of HCA. It performs heavier compression, where the KV entries of $m'$ ($\gg m$) tokens will be consolidated into one. Also, we additionally introduce a small set of sliding window KV entries to enhance local fine-grained dependencies.*
 
 **Shared Key-Value MQA.** After selecting the sparse KV entries, CSA then performs core attention in a Multi-Query Attention (MQA) (Shazeer, 2019) manner, where each compressed KV entry in $C^{\text{SprsComp}}_t$ serves as both attention key and value. To be specific, for a query token $t$, we first produce attention queries $\{\mathbf{q}_{t,1}; \mathbf{q}_{t,2}; ...; \mathbf{q}_{t,n_h}\}$ from the compressed latent vector $c^Q_t$:
 
-$$[\mathbf{q}_{t,1}; \mathbf{q}_{t,2}; ...; \mathbf{q}_{t,n_h}] = \mathbf{q}_t = c^Q_t \cdot W^{UQ}, \quad (18)$$
+$$[\mathbf{q}_{t,1}; \mathbf{q}_{t,2}; ...; \mathbf{q}_{t,n_h}] = \mathbf{q}_t = c^Q_t \cdot W^{UQ}, \tag {18}$$
 
 where $n_h$ denotes the number of query heads; $W^{UQ} \in \mathbb{R}^{d_c \times c n_h}$ is the up-projection matrices for queries. Note that the latent query vector $c^Q_t$ is shared with that used for the indexer queries. Next, we perform MQA on $\{\mathbf{q}_{t,i}\}$ and $C^{\text{SprsComp}}_t$:
 
-$$\mathbf{o}_{t,i} = \text{CoreAttn} \left(\text{query}=\mathbf{q}_{t,i}, \text{key}=C^{\text{SprsComp}}_t, \text{value}=C^{\text{SprsComp}}_t \right), \quad (19)$$
+$$\mathbf{o}_{t,i} = \text{CoreAttn} \left(\text{query}=\mathbf{q}_{t,i}, \text{key}=C^{\text{SprsComp}}_t, \text{value}=C^{\text{SprsComp}}_t \right), \tag {19}$$
 
 where $\mathbf{o}_{t,i} \in \mathbb{R}^c$ is the core attention output of the $i$-th head at the $t$-th token; $\text{CoreAttn}(\cdot)$ denotes the core attention operation.
 
@@ -142,24 +142,24 @@ The core architecture of HCA is illustrated in Figure 4, which compresses the KV
 
 **Compressed Key-Value Entries.** By and large, the compression strategy of HCA is similar to that of CSA, but employs a larger compression rate $m'$ ($\gg m$) and does not perform overlapped compression. Let $H \in \mathbb{R}^{n \times d}$ be a sequence of input hidden states, HCA first computes the original KV entries $C \in \mathbb{R}^{n \times c}$ and their corresponding compression weights $Z \in \mathbb{R}^{n \times c}$:
 
-$$C = H \cdot W^{KV}, \quad (20)$$
-$$Z = H \cdot W^Z, \quad (21)$$
+$$C = H \cdot W^{KV}, \tag {20}$$
+$$Z = H \cdot W^Z, \tag {21}$$
 
 where $W^{KV}, W^Z \in \mathbb{R}^{d \times c}$ are trainable parameters. Next, each $m'$ KV entries in $C$ will be compressed into one according to the compression weights and learnable positional biases $B \in \mathbb{R}^{m' \times c}$, producing $C^{\text{Comp}} \in \mathbb{R}^{\frac{n}{m'} \times c}$. Each compressed entry $C^{\text{Comp}}_i \in \mathbb{R}^c$ is computed by
 
-$$S_{m'i : m'(i+1)-1} = \text{Softmax}_{\text{row}}(Z_{m'i : m'(i+1)-1} + B), \quad (22)$$
-$$C^{\text{Comp}}_i = \sum_{j=m'i}^{m'(i+1)-1} S_j \odot C_j. \quad (23)$$
+$$S_{m'i : m'(i+1)-1} = \text{Softmax}_{\text{row}}(Z_{m'i : m'(i+1)-1} + B), \tag {22}$$
+$$C^{\text{Comp}}_i = \sum_{j=m'i}^{m'(i+1)-1} S_j \odot C_j. \tag {23}$$
 
 Through this compression operation, HCA compresses the sequence length to $\frac{1}{m'}$ times.
 
 **Shared Key-Value MQA and Grouped Output Projection.** HCA also employs the shared KV MQA and grouped output projection strategies as CSA does. After the KV compression, for a query token $t$, HCA first produces attention queries $\{\mathbf{q}_{t,1}; \mathbf{q}_{t,2}; ...; \mathbf{q}_{t,n_h}\}$ in a low-rank manner:
 
-$$c^Q_t = \mathbf{h}_t \cdot W^{DQ}, \quad (24)$$
-$$[\mathbf{q}_{t,1}; \mathbf{q}_{t,2}; ...; \mathbf{q}_{t,n_h}] = \mathbf{q}_t = c^Q_t \cdot W^{UQ}, \quad (25)$$
+$$c^Q_t = \mathbf{h}_t \cdot W^{DQ}, \tag {24}$$
+$$[\mathbf{q}_{t,1}; \mathbf{q}_{t,2}; ...; \mathbf{q}_{t,n_h}] = \mathbf{q}_t = c^Q_t \cdot W^{UQ}, \tag {25}$$
 
 where $\mathbf{h}_t \in \mathbb{R}^d$ is the input hidden state of the query token $t$; $n_h$ denotes the number of query heads; $W^{DQ} \in \mathbb{R}^{d \times d_c}$ and $W^{UQ} \in \mathbb{R}^{d_c \times c n_h}$ are the down-projection and up-projection matrices for queries, respectively. Next, we perform MQA on $\{\mathbf{q}_{t,i}\}$ and $C^{\text{Comp}}$:
 
-$$\mathbf{o}_{t,i} = \text{CoreAttn}\left(\text{query}=\mathbf{q}_{t,i}, \text{key}=C^{\text{Comp}}, \text{value}=C^{\text{Comp}}\right), \quad (26)$$
+$$\mathbf{o}_{t,i} = \text{CoreAttn}\left(\text{query}=\mathbf{q}_{t,i}, \text{key}=C^{\text{Comp}}, \text{value}=C^{\text{Comp}}\right), \tag {26}$$
 
 where $\mathbf{o}_{t,i} \in \mathbb{R}^c$ is the core attention output of the $i$-th head at the $t$-th token. Next, as CSA does, HCA splits $n_h$ outputs into $g$ groups, and for each group of output $\mathbf{o}^G_{t,i} \in \mathbb{R}^{c \frac{n_h}{g}}$, HCA projects it to a $d_g$-dimensional intermediate output $\mathbf{o}^{G'}_{t,i} \in \mathbb{R}^{d_g}$, where $d_g < c \frac{n_h}{g}$. Finally, HCA projects the intermediate output $[\mathbf{o}^{G'}_{t,1}; \mathbf{o}^{G'}_{t,2}; ...; \mathbf{o}^{G'}_{t,g}] \in \mathbb{R}^{d_g g}$ to the final attention output $\mathbf{\hat{o}}_t \in \mathbb{R}^d$.
 
