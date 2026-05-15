@@ -1,250 +1,349 @@
 ---
-slug: ch-10-2
-title: "DeepSeek-V3.2: Pushing the Frontier of Open Large Language Models"
+slug: ch-10-02
+title: "mHC: Manifold-Constrained Hyper-Connections"
 layout: chapter
 ---
-# DeepSeek-V3.2: Pushing the Frontier of Open Large Language Models
 
-**DeepSeek-AI**
-research@deepseek.com
+# *m*HC: Manifold-Constrained Hyper-Connections
 
-### Abstract
-We introduce DeepSeek-V3.2, a model that harmonizes high computational efficiency with superior reasoning and agent performance. The key technical breakthroughs of DeepSeek-V3.2 are as follows: **(1) DeepSeek Sparse Attention (DSA)**: We introduce DSA, an efficient attention mechanism that substantially reduces computational complexity while preserving model performance in long-context scenarios. **(2) Scalable Reinforcement Learning Framework**: By implementing a robust reinforcement learning protocol and scaling post-training compute, DeepSeek-V3.2 performs comparably to GPT-5. Notably, our high-compute variant, DeepSeek-V3.2-Speciale, surpasses GPT-5 and exhibits reasoning proficiency on par with Gemini-3.0-Pro, achieving gold-medal performance in both the 2025 International Mathematical Olympiad (IMO) and the International Olympiad in Informatics (IOI). **(3) Large-Scale Agentic Task Synthesis Pipeline**: To integrate reasoning into tool-use scenarios, we developed a novel synthesis pipeline that systematically generates training data at scale. This methodology facilitates scalable agentic post-training, yielding substantial improvements in generalization and instruction-following robustness within complex, interactive environments.
+## Abstract
 
-![Figure 1: Benchmark of DeepSeek-V3.2 and its counterparts. For HMMT 2025, we report the February competition, consistent with the baselines. For HLE, we report the text-only subset.](https://arxiv.org/html/2512.02556v1/x1.png)
-*Figure 1: Benchmark of DeepSeek-V3.2 and its counterparts. For HMMT 2025, we report the February competition, consistent with the baselines. For HLE, we report the text-only subset.*
+Recently, studies exemplified by Hyper-Connections (HC) have extended the ubiquitous residual connection paradigm established over the past decade by expanding the residual stream width and diversifying connectivity patterns. While yielding substantial performance gains, this diversification fundamentally compromises the identity mapping property intrinsic to the residual connection, which causes severe training instability and restricted scalability, and additionally incurs notable memory access overhead. To address these challenges, we propose **Manifold-Constrained Hyper-Connections** (***m*HC**), a general framework that projects the residual connection space of HC onto a specific manifold to restore the identity mapping property, while incorporating rigorous infrastructure optimization to ensure efficiency. Empirical experiments demonstrate that *m*HC is effective for training at scale, offering tangible performance improvements and superior scalability. We anticipate that *m*HC, as a flexible and practical extension of HC, will contribute to a deeper understanding of topological architecture design and suggest promising directions for the evolution of foundational models.
+
+![Figure 1: Illustrations of Residual Connection Paradigms.](https://arxiv.org/html/2512.24880v2/x1.png)
+*Figure 1: Illustrations of Residual Connection Paradigms. This figure compares the structural design of (a) standard Residual Connection, (b) Hyper-Connections (HC), and (c) our proposed Manifold-Constrained Hyper-Connections (mHC). Unlike the unconstrained HC, mHC focuses on optimizing the residual connection space by projecting the matrices onto a constrained manifold to ensure stability.*
 
 ## 1 Introduction
-The release of reasoning models (o1; deepseekr1) marked a pivotal moment in the evolution of Large Language Models (LLMs), catalyzing a substantial leap in overall performance across the verifiable fields. Since this milestone, the capabilities of LLMs have advanced rapidly. However, a distinct divergence has emerged in the past months. While the open-source community continues to make strides, the performance trajectory of closed-source proprietary models (gpt-5; sonnet-4.5; comanici2025gemini) has accelerated at a significantly steeper rate. Consequently, rather than converging, the performance gap between closed-source and open-source models appears to be widening, with proprietary systems demonstrating increasingly superior capabilities in complex tasks.
 
-Through our analysis, we identify three critical deficiencies that limit the capability of open-source models in complex tasks. First, architecturally, the predominant reliance on vanilla attention mechanisms severely constrains efficiency for long sequences. This inefficiency poses a substantial obstacle to both scalable deployment and effective post-training. Second, regarding resource allocation, open-source models suffer from insufficient computational investment during the post-training phase, limiting their performance on hard tasks. Finally, in the context of AI agents, open-source models demonstrate a marked lag in generalization and instruction-following capabilities compared to their proprietary counterparts, hindering their effectiveness in real deployment.
+Deep neural network architectures have undergone rapid evolution since the introduction of ResNets. As illustrated in Fig. 1(a), the structure of a single-layer can be formulated as follows:
 
-To address these critical limitations, we first introduce DSA, a highly efficient attention mechanism designed to substantially reduce computational complexity. This architecture effectively addresses the efficiency bottleneck, preserving model performance even in long-context scenarios. Second, we develop a stable and scalable RL protocol that allows for significant computational expansion during the post-training phase. Notably, this framework allocates a post-training computational budget exceeding 10% of the pre-training cost, unlocking advanced capabilities. Thirdly, we propose a novel pipeline to foster generalizable reasoning in tool-use scenarios. First, we implement a cold-start phase utilizing the DeepSeek-V3 methodology to unify reasoning and tool-use within single trajectories. Subsequently, we advance to large-scale agentic task synthesis, where we generate over 1,800 distinct environments and 85,000 complex prompts. This extensive synthesized data drives the RL process, significantly enhancing the model’s generalization and instruction-following capability in the agent context.
+$$\mathbf{x}_{l+1}=\mathbf{x}_{l}+\mathcal{F}(\mathbf{x}_{l},\mathcal{W}_{l}), \tag {1}$$
 
-DeepSeek-V3.2 achieves similar performance with Kimi-k2-thinking and GPT-5 across multiple reasoning benchmarks. Furthermore, DeepSeek-V3.2 significantly advances the agentic capabilities of open models, demonstrating exceptional proficiency on the long-tail agent tasks. DeepSeek-V3.2 emerges as a highly cost-efficient alternative in agent scenarios, significantly narrowing the performance gap between open and frontier proprietary models while incurring substantially lower costs. Notably, with the aim of pushing the boundaries of open models in the reasoning domain, we relaxed the length constraints to develop DeepSeek-V3.2-Speciale. As a result, DeepSeek-V3.2-Speciale achieves performance parity with the leading closed-source system, Gemini-3.0-Pro. It shows gold-medal performance in the IOI 2025, ICPC World Final 2025, IMO 2025, and CMO 2025.
+where $\mathbf{x}_{l}$ and $\mathbf{x}_{l+1}$ denote the $C$-dimensional input and output of the $l$-th layer, respectively, and $\mathcal{F}$ represents the residual function. Although the residual function $\mathcal{F}$ has evolved over the past decade to include various operations such as convolution, attention mechanisms, and feed forward networks, the paradigm of the residual connection has maintained its original form. Accompanying the progression of Transformer architecture, this paradigm has currently established itself as a fundamental design element in large language models (LLMs).
 
-## 2 DeepSeek-V3.2 Architecture
+This success is primarily attributed to the concise form of the residual connection. More importantly, early research revealed that the identity mapping property of the residual connection maintains stability and efficiency during large-scale training. By recursively extending the residual connection across multiple layers, Eq. (1) yields:
 
-### 2.1 DeepSeek Sparse Attention
-DeepSeek-V3.2 uses exactly the same architecture as DeepSeek-V3.2-Exp. Compared with DeepSeek-V3.1-Terminus, the last version of DeepSeek-V3.1, the only architectural modification of DeepSeek-V3.2 is the introduction of DeepSeek Sparse Attention (DSA) through continued training.
+$$\mathbf{x}_{L}=\mathbf{x}_{l}+\sum_{i=l}^{L-1}\mathcal{F}(\mathbf{x}_{i},\mathcal{W}_{i}), \quad (2)$$
 
-##### Prototype of DSA.
-The prototype of DSA primarily consists of two components: a lightning indexer and a fine-grained token selection mechanism.
+where $L$ and $l$ correspond to deeper and shallower layers, respectively. The term identity mapping refers to the component $\mathbf{x}_{l}$ itself, which emphasizes the property that the signal from the shallower layer maps directly to the deeper layer without any modification.
 
-The **lightning indexer** computes the index score $I_{t,s}$ between the query token $\mathbf{h}_{t}\in\mathbb{R}^{d}$ and a preceding token $\mathbf{h}_{s}\in\mathbb{R}^{d}$, determining which tokens to be selected by the query token:
+Recently, studies exemplified by Hyper-Connections (HC) have introduced a new dimension to the residual connection and empirically demonstrated its performance potential. The single-layer architecture of HC is illustrated in Fig. 1(b). By expanding the width of the residual stream and enhancing connection complexity, HC significantly increases topological complexity without altering the computational overhead of individual units regarding FLOPs. Formally, single-layer propagation in HC is defined as:
 
-$$I_{t,s}=\sum_{j=1}^{H^{I}}w_{t,j}^{I}\cdot\text{ReLU}\left(\mathbf{q}^{I}_{t,j}\cdot\mathbf{k}^{I}_{s}\right), \quad (1)$$
+$$\mathbf{x}_{l+1}=\mathcal{H}_{l}^{\mathrm{res}}\mathbf{x}_{l}+\mathcal{H}_{l}^{\mathrm{post}\,\top}\mathcal{F}(\mathcal{H}_{l}^{\mathrm{pre}}\mathbf{x}_{l},\mathcal{W}_{l}), \quad (3)$$
 
-where $H^{I}$ denotes the number of indexer heads; $\mathbf{q}^{I}_{t,j}\in\mathbb{R}^{d^{I}}$ and $w_{t,j}^{I}\in\mathbb{R}$ are derived from the query token $\mathbf{h}_{t}$; and $\mathbf{k}^{I}_{s}\in\mathbb{R}^{d^{I}}$ is derived from the preceding token $\mathbf{h}_{s}$. We choose ReLU as the activation function for throughput consideration. Given that the lightning indexer has a small number of heads and can be implemented in FP8, its computational efficiency is remarkable.
+where $\mathbf{x}_{l}$ and $\mathbf{x}_{l+1}$ denote the input and output of the $l$-th layer, respectively. Unlike the formulation in Eq. (1), the feature dimension of $\mathbf{x}_{l}$ and $\mathbf{x}_{l+1}$ is expanded from $C$ to $n \times C$, where $n$ is the expansion rate. The term $\mathcal{H}_{l}^{\mathrm{res}}\in\mathbb{R}^{n\times n}$ represents a learnable mapping that mixes features within the residual stream. Also as a learnable mapping, $\mathcal{H}_{l}^{\mathrm{pre}}\in\mathbb{R}^{1\times n}$ aggregates features from the $nC$-dim stream into a $C$-dim layer input, and conversely, $\mathcal{H}_{l}^{\mathrm{post}}\in\mathbb{R}^{1\times n}$ maps the layer output back onto the stream.
 
-Given the index scores $\{I_{t,s}\}$ for each query token $\mathbf{h}_{t}$, our **fine-grained token selection mechanism** retrieves only the key-value entries $\{\mathbf{c}_{s}\}$ corresponding to the top-k index scores. Then, the attention output $\mathbf{u}_{t}$ is computed by applying the attention mechanism between the query token $\mathbf{h}_{t}$ and the sparsely selected key-value entries $\{\mathbf{c}_{s}\}$:
+However, as the training scale increases, HC introduces potential risks of instability. The primary concern is that the unconstrained nature of HC compromises the identity mapping property when the architecture extends across multiple layers. In architectures comprising multiple parallel streams, an ideal identity mapping serves as a conservation mechanism. It ensures that the average signal intensity across streams remains invariant during both forward and backward propagation. Recursively extending HC to multiple layers via Eq. (3) yields:
 
-$$\mathbf{u}_{t}=\text{Attn}\left(\mathbf{h}_{t},\{\mathbf{c}_{s} \mid I_{t,s}\in\text{Top-k}(I_{t,:})\}\right). \quad (2)$$
+$$\mathbf{x}_{L}=\left(\prod_{i=1}^{L-l}\mathcal{H}_{L-i}^{\mathrm{res}}\right)\mathbf{x}_{l}+\sum_{i=l}^{L-1}\left(\prod_{j=1}^{L-1-i}\mathcal{H}_{L-j}^{\mathrm{res}}\right)\mathcal{H}_{i}^{\mathrm{post}\,\top}\mathcal{F}(\mathcal{H}_{i}^{\mathrm{pre}}\mathbf{x}_{i},\mathcal{W}_{i}), \quad (4)$$
 
-![Figure 2: Attention architecture of DeepSeek-V3.2, where DSA is instantiated under MLA. The green part illustrates how DSA selects the top-k key-value entries according to the indexer.](https://arxiv.org/html/2512.02556v1/x2.png)
-*Figure 2: Attention architecture of DeepSeek-V3.2, where DSA is instantiated under MLA. The green part illustrates how DSA selects the top-k key-value entries according to the indexer.*
+where $L$ and $l$ represent a deeper layer and a shallower layer, respectively. In contrast to Eq. (2), the composite mapping $\prod_{i=1}^{L-l}\mathcal{H}_{L-i}^{\mathrm{res}}$ in HC fails to preserve the global mean of the features. This discrepancy leads to unbounded signal amplification or attenuation, resulting in instability during large-scale training. A further consideration is that, while HC preserves computational efficiency in terms of FLOPs, the hardware efficiency concerning memory access costs for the widened residual stream remains unaddressed in the original design. These factors collectively restrict the practical scalability of HC and hinder its application in large-scale training.
 
-##### Instantiate DSA Under MLA.
-For the consideration of continued training from DeepSeek-V3.1-Terminus, we instantiate DSA based on MLA for DeepSeek-V3.2. At the kernel level, each key-value entry must be shared across multiple queries for computational efficiency. Therefore, we implement DSA based on the MQA mode of MLA, where each latent vector (the key-value entry of MLA) will be shared across all query heads of the query token. The DSA architecture based on MLA is illustrated in Figure 2. We also provide an open-source implementation of DeepSeek-V3.2.
+To address these challenges, we propose **Manifold-Constrained Hyper-Connections** (***m*HC**), as shown in Fig. 1(c), a general framework that projects the residual connection space of HC onto a specific manifold to restore the identity mapping property, while incorporating rigorous infrastructure optimization to ensure efficiency. Specifically, *m*HC utilizes the Sinkhorn-Knopp algorithm to entropically project $\mathcal{H}_{l}^{\mathrm{res}}$ onto the Birkhoff polytope. This operation effectively constrains the residual connection matrices within the manifold that is constituted by doubly stochastic matrices. Since the row and column sums of these matrices equal to $1$, the operation $\mathcal{H}_{l}^{\mathrm{res}}\mathbf{x}_{l}$ functions as a convex combination of the input features. This characteristic facilitates a well-conditioned signal propagation where the feature mean is conserved, and the signal norm is strictly regularized, effectively mitigating the risk of vanishing or exploding signals. Furthermore, due to the closure of matrix multiplication for doubly stochastic matrices, the composite mapping $\prod_{i=1}^{L-l}\mathcal{H}_{L-i}^{\mathrm{res}}$ retains this conservation property. Consequently, *m*HC effectively maintains the stability of identity mappings between arbitrary depths. To ensure efficiency, we employ kernel fusion and develop mixed precision kernels utilizing TileLang. Furthermore, we mitigate the memory footprint through selective recomputing and carefully overlap communication within the DualPipe schedule.
 
-#### 2.1.1 Continued Pre-Training
-Starting from a base checkpoint of DeepSeek-V3.1-Terminus, whose context length has been extended to 128K, we perform continued pre-training followed by post-training to create DeepSeek-V3.2.
+Extensive experiments on language model pretraining demonstrate that *m*HC exhibits exceptional stability and scalability while maintaining the performance advantages of HC. In-house large-scale training indicates that *m*HC supports training at scale and introduces only a 6.7% additional time overhead when expansion rate $n=4$.
 
-The continued pre-training of DeepSeek-V3.2 consists of two training stages. For both stages, the distribution of training data is totally aligned with the 128K long context extension data used for DeepSeek-V3.1-Terminus.
+</section>
 
-##### Dense Warm-up Stage.
-We first use a short warm-up stage to initialize the lightning indexer. In this stage, we keep dense attention and freeze all model parameters except for the lightning indexer. To align the indexer outputs with the main attention distribution, for the $t$-th query token, we first aggregate the main attention scores by summing across all attention heads. This sum is then L1-normalized along the sequence dimension to produce a target distribution $p_{t,:}\in\mathbb{R}^{t}$. Based on $p_{t,:}$, we set a KL-divergence loss as the training objective of the indexer:
+<section id="S2">
 
-$$\mathcal{L}^{I}=\sum_{t}\mathbb{D}_{\mathrm{KL}}\left(p_{t,:} \parallel \text{Softmax}(I_{t,:})\right). \quad (3)$$
+## 2 Related Works
 
-For warm-up, we use a learning rate of $10^{-3}$. We train the indexer for only 1000 steps, with each step consisting of 16 sequences of 128K tokens, resulting in a total of 2.1B tokens.
+Architectural advancements in deep learning can be primarily classified into *micro-design* and *macro-design*. Micro-design concerns the internal architecture of computational blocks, specifying how features are processed across spatial, temporal, and channel dimensions. In contrast, macro-design establishes the inter-block topological structure, thereby dictating how feature representations are propagated, routed, and merged across distinct layers.
 
-##### Sparse Training Stage.
-Following indexer warm-up, we introduce the fine-grained token selection mechanism and optimize all model parameters to adapt the model to the sparse pattern of DSA. In this stage, we also keep aligning the indexer outputs to the main attention distribution, but considering only the selected token set $\mathcal{S}_{t}=\{s \mid I_{t,s}\in\text{Top-k}(I_{t,:})\}$:
+<section id="S2.SS1">
 
-$$\mathcal{L}^{I}=\sum_{t}\mathbb{D}_{\mathrm{KL}}\left(p_{t,\mathcal{S}_{t}} \parallel \text{Softmax}(I_{t,\mathcal{S}_{t}})\right). \quad (4)$$
+### 2.1 Micro Design
+Driven by parameter sharing and translation invariance, convolution initially dominated the processing of structured signals. While subsequent variations such as depthwise separable and grouped convolutions optimized efficiency, the advent of Transformers established Attention and Feed-Forward Networks (FFNs) as the fundamental building blocks of modern architecture. Attention mechanisms facilitate global information propagation, while FFNs enhance the representational capacity of individual features. To balance performance with the computational demands of LLMs, attention mechanisms have evolved towards efficient variants such as Multi-Query Attention (MQA), Grouped-Query Attention (GQA), and Multi-Head Latent Attention (MLA). Simultaneously, FFNs have been generalized into sparse computing paradigms via Mixture-of-Experts (MoE), allowing for massive parameter scaling without proportional computational costs.
 
-It is worth noting that we detach the indexer input from the computational graph for separate optimization. The training signal of the indexer is from only $\mathcal{L}^{I}$, while the optimization of the main model is according to only the language modeling loss. In this sparse training stage, we use a learning rate of $7.3\times 10^{-6}$, and select 2048 key-value tokens for each query token. We train both the main model and the indexer for $15000$ steps, with each step consisting of 480 sequences of 128K tokens, resulting in a total of 943.7B tokens.
+</section>
 
-### 2.2 Parity Evaluation
+<section id="S2.SS2">
 
-##### Standard Benchmark
-In September 2025, we evaluate DeepSeek-V3.2-Exp on a suite of benchmarks, which focus on diverse capabilities, and compare it with DeepSeek-V3.1-Terminus showing similar performance. While DeepSeek V3.2 Exp significantly improves computational efficiency on long sequences, we do not observe substantial performance degradation compared with DeepSeek-V3.1-Terminus, on both short- and long-context tasks.
+### 2.2 Macro Design
+Macro-design governs the global topology of the network. Following ResNet, architectures such as DenseNet and FractalNet aimed to enhance performance by increasing topological complexity through dense connectivity and multi-path structures, respectively. Deep Layer Aggregation (DLA) further extended this paradigm by recursively aggregating features across various depths and resolutions.
 
-##### Human Preference
-Given that direct human preference assessments are inherently susceptible to bias, we employ ChatbotArena as an indirect evaluation framework to approximate user preferences for the newly developed base models. Both DeepSeek‑V3.1‑Terminus and DeepSeek‑V3.2‑Exp share an identical post‑training strategy, and their Elo scores, obtained from evaluations conducted on 10 November 2025, are closely matched. These results suggest that the new base model achieves performance on par with the previous iteration, despite incorporating a sparse attention mechanism.
+More recently, the focus of macro-design has shifted toward expanding the width of the residual stream. Hyper-Connections (HC) introduced learnable matrices to modulate connection strengths among features at varying depths, while the Residual Matrix Transformer (RMT) replaced the standard residual stream with an outer-product memory matrix to facilitate feature storage. Similarly, MUDDFormer employs multiway dynamic dense connections to optimize cross-layer information flow. Despite their potential, these approaches compromise the inherent identity mapping property of the residual connection, thereby introducing instability and hindering scalability. Furthermore, they incur significant memory access overhead due to expanded feature widths. Building upon HC, the proposed *m*HC restricts the residual connection space onto a specific manifold to restore the identity mapping property, while also incorporating rigorous infrastructure optimizations to ensure efficiency. This approach enhances stability and scalability while maintaining the topological benefits of expanded connections.
 
-##### Long Context Eval
-Following the release of DeepSeek‑V3.2‑Exp, several independent long‑context evaluations were conducted using previously unseen test sets. A representative benchmark is AA‑LCR, in which DeepSeek‑V3.2‑Exp scores four points higher than DeepSeek-V3.1-Terminus in reasoning mode. In the Fiction.liveBench evaluation, DeepSeek‑V3.2‑Exp consistently outperforms DeepSeek-V3.1-Terminus across multiple metrics. This evidence indicates the base checkpoint of DeepSeek‑V3.2‑Exp does not regress on long context tasks.
+</section>
+</section>
 
-### 2.3 Inference Costs
-DSA reduces the core attention complexity of the main model from $O(L^2)$ to $O(Lk)$, where $k$ ($\ll L$) is the number of selected tokens. Although the lightning indexer still has a complexity of $O(L^2)$, it requires much less computation compared with MLA in DeepSeek-V3.1-Terminus. Combined with our optimized implementation, DSA achieves a significant end-to-end speedup in long-context scenarios. Figure 3 presents how token costs of DeepSeek-V3.1-Terminus and DeepSeek-V3.2 vary with the token position in the sequence. These costs are estimated from benchmarking the actual service deployed on H800 GPUs, at a rental price of 2 USD per GPU hour. Note that for short-sequence prefilling, we specially implement a masked MHA mode to simulate DSA, which can achieve higher efficiency under short-context conditions.
+<section id="S3">
 
-![Figure 3: Inference costs of DeepSeek-V3.1-Terminus and DeepSeek-V3.2 on H800 clusters. (a) Prefilling (b) Decoding.](https://arxiv.org/html/2512.02556v1/x3.png)
-*Figure 3: Inference costs of DeepSeek-V3.1-Terminus and DeepSeek-V3.2 on H800 clusters. (a) Prefilling (b) Decoding.*
+## 3 Preliminary
 
-## 3 Post-Training
-After continued pre-training, we perform post-training to create the final DeepSeek-V3.2. The post-training of DeepSeek-V3.2 also employs sparse attention in the same way as the sparse continued pre-training stage. For DeepSeek-V3.2, we maintain the same post-training pipeline as in DeepSeek-V3.2-Exp, which includes specialist distillation and mixed RL training.
+We first establish the notation used in this work. In the HC formulation, the input to the $l$-th layer, $\textbf{x}_{l}\in\mathbb{R}^{1\times C}$, is expanded by a factor of $n$ to construct a hidden matrix $\textbf{x}_{l}=(\textbf{x}^{\top}_{l,0},\ldots,\textbf{x}^{\top}_{l,n-1})^{\top}\in\mathbb{R}^{n\times C}$ which can be viewed as $n$-stream residual. This operation effectively broadens the width of the residual stream. To govern the read-out, write-in, and updating processes of this stream, HC introduces three learnable linear mappings—$\mathcal{H}^{\mathrm{pre}}_{l},\mathcal{H}^{\mathrm{post}}_{l}\in\mathbb{R}^{1\times n}$, and $\mathcal{H}^{\mathrm{res}}_{l}\in\mathbb{R}^{n\times n}$. These mappings modify the standard residual connection shown in Eq. (1), resulting in the formulation given in Eq. (3).
 
-##### Specialist Distillation
-For each task, we initially develop a specialized model dedicated exclusively to that particular domain, with all specialist models being fine-tuned from the same pre-trained DeepSeek-V3.2 base checkpoint. In addition to writing tasks and general question-answering, our framework encompasses six specialized domains: mathematics, programming, general logical reasoning, general agentic tasks, agentic coding, and agentic search, with all the domains supporting both thinking and non-thinking modes. Each specialist is trained with large-scale Reinforcement Learning (RL) computing. Furthermore, we employ different models to generate training data for long chain-of-thought reasoning (thinking mode) and direct response generation (non-thinking mode). Once the specialist models are prepared, they are used to produce the domain-specific data for the final checkpoint. Experimental results demonstrate that models trained on the distilled data achieve performance levels only marginally below those of domain-specific specialists, with the performance gap being effectively eliminated through subsequent RL training.
+In the HC formulation, learnable mappings are composed of two parts of coefficients: the input-dependent one and the global one, referred to as dynamic mappings and static mappings, respectively. Formally, HC computes the coefficients as follows:
 
-##### Mixed RL Training
-For DeepSeek-V3.2, we still adopt Group Relative Policy Optimization (GRPO) as the RL training algorithm. As DeepSeek-V3.2-Exp, we merge reasoning, agent, and human alignment training into one RL stage. This approach effectively balances performance across diverse domains while circumventing the catastrophic forgetting issues commonly associated with multi-stage training paradigms. For reasoning and agent tasks, we employ rule-based outcome reward, length penalty, and language consistency reward. For general tasks, we employ a generative reward model where each prompt has its own rubrics for evaluation.
+$$\begin{cases}\tilde{\mathbf{x}}_{l}=\text{RMSNorm}(\mathbf{x}_{l})\\ \mathcal{H}^{\mathrm{pre}}_{l}=\alpha_{l}^{\mathrm{pre}}\cdot\tanh(\theta^{\mathrm{pre}}_{l}\tilde{\mathbf{x}}^{\top}_{l})+\mathbf{b}_{l}^{\mathrm{pre}}\\ \mathcal{H}^{\mathrm{post}}_{l}=\alpha_{l}^{\mathrm{post}}\cdot\tanh(\theta^{\mathrm{post}}_{l}\tilde{\mathbf{x}}^{\top}_{l})+\mathbf{b}_{l}^{\mathrm{post}}\\ \mathcal{H}^{\mathrm{res}}_{l}=\alpha_{l}^{\mathrm{res}}\cdot\tanh(\theta^{\mathrm{res}}_{l}\tilde{\mathbf{x}}^{\top}_{l})+\mathbf{b}_{l}^{\mathrm{res}},\\ \end{cases} \quad (5)$$
 
-##### DeepSeek-V3.2 and DeepSeek-V3.2-Speciale
-DeepSeek-V3.2 integrates reasoning, agent, and human alignment data distilled from specialists, undergoing thousands of steps of continued RL training to reach the final checkpoints. To investigate the potential of extended thinking, we also developed an experimental variant, DeepSeek-V3.2-Speciale. This model was trained exclusively on reasoning data with a reduced length penalty during RL. Additionally, we incorporated the dataset and reward method from DeepSeekMath-V2 to enhance capabilities in mathematical proofs.
+where $\text{RMSNorm}(\cdot)$ is applied to the last dimension, and the scalars $\alpha_{l}^{\mathrm{pre}},\alpha_{l}^{\mathrm{post}}$ and $\alpha_{l}^{\mathrm{res}}\in\mathbb{R}$ are learnable gating factors initialized to small values. The dynamic mappings are derived via linear projections parameterized by $\theta^{\mathrm{pre}}_{l},\theta^{\mathrm{post}}_{l}\in\mathbb{R}^{1\times C}$ and $\theta^{\mathrm{res}}_{l}\in\mathbb{R}^{n\times C}$, while the static mappings are represented by learnable biases $\mathbf{b}_{l}^{\mathrm{pre}},\mathbf{b}_{l}^{\mathrm{post}}\in\mathbb{R}^{1\times n}$ and $\mathbf{b}_{l}^{\mathrm{res}}\in\mathbb{R}^{n\times n}$.
 
-### 3.1 Scaling GRPO
-We first review the objective of GRPO. GRPO optimizes the policy model $\pi_{\theta}$ by maximizing the following objective on a group of responses $\{o_{1},\cdots,o_{G}\}$ sampled from the old policy $\pi_{\mathrm{old}}$ given each question $q$:
+It is worth noting that the introduction of these mappings—$\mathcal{H}^{\mathrm{pre}}_{l}$, $\mathcal{H}^{\mathrm{post}}_{l}$, and $\mathcal{H}^{\mathrm{res}}_{l}$—incurs negligible computational overhead, as the typical expansion rate $n$, e.g. 4, is much smaller than the input dimension $C$. With this design, HC effectively decouples the information capacity of the residual stream from the layer’s input dimension, which is strongly correlated with the model’s computational complexity (FLOPs). Consequently, HC offers a new avenue for scaling by adjusting the residual stream width, complementing the traditional scaling dimensions of model FLOPs and training data size discussed in pre-training scaling laws.
 
-$$\mathcal{J}_{\mathrm{GRPO}}(\theta)=\mathbb{E}_{q\sim P(Q),\{o_{i}\}_{i=1}^{G}\sim\pi_{\mathrm{old}}(\cdot|q)}\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_{i}|}\sum_{t=1}^{|o_{i}|} \right.$$
-$$\left.\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\text{clip}\left(r_{i,t}(\theta),1-\varepsilon,1+\varepsilon\right)\hat{A}_{i,t}\right)-\beta\mathbb{D}_{\mathrm{KL}}\left(\pi_{\theta}(o_{i,t}) \parallel \pi_{\mathrm{ref}}(o_{i,t})\right)\right], \quad (5)$$
+It is worth noting that although HC necessitates three mappings to manage the dimensional mismatch between the residual stream and the layer input, preliminary experiments presented in Tab. 1 indicate that the residual mapping $\mathcal{H}^{\mathrm{res}}_{l}$ yields the most significant performance gain. This finding underscores the critical importance of effective information exchange within the residual stream.
 
-where
-$$r_{i,t}(\theta)=\frac{\pi_{\theta}(o_{i,t}|q,o_{i,<t})}{\pi_{\mathrm{old}}(o_{i,t}|q,o_{i,<t})} \quad (6)$$
+| $\mathcal{H}^{\mathrm{res}}_{l}$ | $\mathcal{H}^{\mathrm{pre}}_{l}$ | $\mathcal{H}^{\mathrm{post}}_{l}$ | Absolute Loss Gap |
+| :---: | :---: | :---: | :---: |
+| | | | 0.0 |
+| ✓ | | | - 0.022 |
+| ✓ | ✓ | | - 0.025 |
+| ✓ | ✓ | ✓ | - 0.027 |
 
-is the importance sampling ratio between the current and old policy. $\varepsilon$ and $\beta$ are hyper-parameters controlling the clipping range and KL penalty strength, respectively. $\hat{A}_{i,t}$ is the advantage of $o_{i,t}$ which is estimated by normalizing the outcome reward within each group. Specifically, a set of reward models are used to score an outcome reward $R_{i}$ for each output $o_{i}$ in the group, yielding $G$ rewards $\boldsymbol{R}=\{R_{1},\cdots,R_{G}\}$ respectively. The advantage of $o_{i,t}$ is calculated by subtracting the average reward of the group from the reward of output $o_{i}$, i.e., $\hat{A}_{i,t}=R_{i}-\text{mean}(\boldsymbol{R})$.
+*Table 1: Ablation Study of HC Components. When a specific mapping ($\mathcal{H}^{\mathrm{pre}}_{l}$, $\mathcal{H}^{\mathrm{post}}_{l}$, or $\mathcal{H}^{\mathrm{res}}_{l}$) is disabled, we employ a fixed mapping to maintain dimensional consistency: uniform weights of $1/n$ for $\mathcal{H}^{\mathrm{pre}}_{l}$, uniform weights of ones for $\mathcal{H}^{\mathrm{post}}_{l}$, and the identity matrix for $\mathcal{H}^{\mathrm{res}}_{l}$.*
 
-In the following, we outline additional strategies that stabilize RL scaling, directly building on the GRPO algorithm.
+<section id="S3.SS1">
 
-##### Unbiased KL Estimate
-Given $o_{i,t}$ is sampled from the old policy $\pi_{\mathrm{old}}(\cdot|q,o_{i,<t})$, we correct the K3 estimator to obtain an unbiased KL estimate using the importance-sampling ratio between the current policy $\pi_{\theta}$ and the old policy $\pi_{\mathrm{old}}$.
+### 3.1 Numerical Instability
+While the residual mapping $\mathcal{H}^{\mathrm{res}}_{l}$ is instrumental for performance, its sequential application poses a significant risk to numerical stability. As detailed in Eq. (4), when HC is extended across multiple layers, the effective signal propagation from layer $l$ to $L$ is governed by the composite mapping $\prod_{i=1}^{L-l}\mathcal{H}_{L-i}^{\mathrm{res}}$. Since the learnable mapping $\mathcal{H}^{\mathrm{res}}_{l}$ is unconstrained, this composite mapping inevitably deviates from the identity mapping. Consequently, the signal magnitude is prone to explosion or vanishing during both the forward pass and backpropagation. This phenomenon undermines the fundamental premise of residual learning, which relies on unimpeded signal flow, thereby destabilizing the training process in deeper or larger-scale models.
 
-$$\mathbb{D}_{\mathrm{KL}}\left(\pi_{\theta}(o_{i,t}) \parallel \pi_{\mathrm{ref}}(o_{i,t})\right)=\frac{\pi_{\theta}(o_{i,t}|q,o_{i,<t})}{\pi_{\mathrm{old}}(o_{i,t}|q,o_{i,<t})}\left(\frac{\pi_{\mathrm{ref}}(o_{i,t}|q,o_{i,<t})}{\pi_{\theta}(o_{i,t}|q,o_{i,<t})}-\log\frac{\pi_{\mathrm{ref}}(o_{i,t}|q,o_{i,<t})}{\pi_{\theta}(o_{i,t}|q,o_{i,<t})}-1\right). \quad (7)$$
+Empirical evidence supports this analysis. We observe unstable loss behavior in large-scale experiments, as illustrated in Fig. 2. Taking *m*HC as the baseline, HC exhibits an unexpected loss surge around the 12k step, which is highly correlated with the instability in the gradient norm. Furthermore, the analysis on $\mathcal{H}^{\mathrm{res}}_{l}$ validates the mechanism of this instability. To quantify how the composite mapping $\prod_{i=1}^{L-l}\mathcal{H}_{L-i}^{\mathrm{res}}$ amplifies signals along the residual stream, we utilize two metrics. The first, based on the maximum absolute value of the row sums of the composite mapping, captures the worst-case expansion in the forward pass. The second, based on the maximum absolute column sum, corresponds to the backward pass. We refer to these metrics as the *Amax Gain Magnitude* of the composite mapping. As shown in Fig. 3 (b), the Amax Gain Magnitude yields extreme values with peaks of 3000, a stark divergence from 1 that confirms the presence of exploding residual streams.
 
-As a direct result of this adjustment, the gradient of this KL estimator becomes unbiased, which eliminates systematic estimation errors, thereby facilitating stable convergence. This contrasts sharply with the original K3 estimator, particularly when the sampled tokens have substantially lower probabilities under the current policy than the reference policy, i.e., $\pi_{\theta}\ll\pi_{\mathrm{ref}}$.
+![Figure 2: Training Instability of Hyper-Connections (HC).](https://arxiv.org/html/2512.24880v2/x2.png)
+*Figure 2: Training Instability of Hyper-Connections (HC). This figure illustrates (a) the absolute loss gap of HC relative to mHC, and (b) the comparisons of gradient norms. All results are based on 27B models.*
 
-##### Off-Policy Sequence Masking
-To improve the efficiency of RL systems, we typically generate a large batch of rollout data, which is subsequently split into multiple mini-batches for several gradient update steps. This practice inherently introduces off-policy behavior. To stabilize training and improve tolerance for off-policy updates, we mask negative sequences that introduce significant policy divergence, as measured by the KL divergence between the data-sampling policy $\pi_{\mathrm{old}}$ and the current policy $\pi_{\theta}$. More specifically, we introduce a binary mask $M$ into the GRPO loss:
+![Figure 3: Propagation Instability of Hyper-Connections (HC).](https://arxiv.org/html/2512.24880v2/x3.png)
+*Figure 3: Propagation Instability of Hyper-Connections (HC). This figure illustrates the propagation dynamics of (a) the single-layer mapping $\mathcal{H}^{\mathrm{res}}_{l}$ and (b) the composite mapping $\prod_{i=1}^{L-l}\mathcal{H}_{L-i}^{\mathrm{res}}$ within the 27B model. The layer index $l$ (x-axis) unrolls each standard Transformer block into two independent layers (Attention and FFN). The Amax Gain Magnitude (y-axis) is calculated as the maximum absolute row sum (for the forward signal) and column sum (for the backward gradient), averaged over all tokens in a selected sequence.*
 
-$$\mathcal{J}_{\mathrm{GRPO}}(\theta)=\mathbb{E}_{q\sim P(Q),\{o_{i}\}_{i=1}^{G}\sim\pi_{\mathrm{old}}(\cdot|q)}\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_{i}|}\sum_{t=1}^{|o_{i}|} \right.$$
-$$\left.\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\text{clip}\left(r_{i,t}(\theta),1-\varepsilon,1+\varepsilon\right)\hat{A}_{i,t}\right)M_{i,t}-\beta\mathbb{D}_{\mathrm{KL}}\left(\pi_{\theta}(o_{i,t}) \parallel \pi_{\mathrm{ref}}(o_{i,t})\right)\right], \quad (8)$$
+</section>
 
-where
+<section id="S3.SS2">
 
-$$M_{i,t}=\begin{cases}0 & \hat{A}_{i,t}<0,\frac{1}{|o_{i}|}\sum_{t=1}^{|o_{i}|}\log\frac{\pi_{\mathrm{old}}(o_{i,t}|q,o_{i,<t})}{\pi_{\theta}(o_{i,t}|q,o_{i,<t})}>\delta \\ 1 & \text{otherwise,}\end{cases} \quad (9)$$
+### 3.2 System Overhead
+While the computational complexity of HC remains manageable due to the linearity of the additional mappings, the system-level overhead prevents a non-negligible challenge. Specifically, memory access (I/O) costs often constitute one of the primary bottlenecks in modern model architectures, which is widely referred to as the “memory wall”. This bottleneck is frequently overlooked in architectural design, yet it decisively impacts runtime efficiency.
 
-and $\delta$ is a hyper-parameter that controls the threshold of policy divergence.
+| Method | Operation | Read (Elements) | Write (Elements) |
+| :--- | :--- | :---: | :---: |
+| Residual Connection | Residual Merge | $2C$ | $C$ |
+| | **Total I/O** | **2C** | **C** |
+| Hyper-Connections | Calculate $\mathcal{H}^{\mathrm{pre}}_{l}$, $\mathcal{H}^{\mathrm{post}}_{l}$, $\mathcal{H}^{\mathrm{res}}_{l}$ | $nC$ | $n^{2}+2n$ |
+| | $\mathcal{H}^{\mathrm{pre}}_{l}$ | $nC+n$ | $C$ |
+| | $\mathcal{H}^{\mathrm{post}}_{l}$ | $C+n$ | $nC$ |
+| | $\mathcal{H}^{\mathrm{res}}_{l}$ | $nC+n^{2}$ | $nC$ |
+| | Residual Merge | $2nC$ | $nC$ |
+| | **Total I/O** | **(5n+1)C+n²+2n** | **(3n+1)C+n²+2n** |
+*Table 2: Comparison of Memory Access Costs Per Token. This analysis accounts for the overhead introduced by the residual stream maintenance in the forward pass, excluding the internal I/O of the layer function $\mathcal{F}$.*
 
-##### Keep Routing
-Mixture-of-Experts (MoE) models improve computational efficiency by activating only a subset of expert modules during inference. To mitigate routing path shifts between inference and training, we preserve the expert routing paths used during sampling in the inference framework and enforce the same routing paths during training.
+Focusing on the widely adopted pre-norm Transformer architecture, we analyze the I/O patterns inherent to HC. Tab. 2 summarizes the per token memory access overhead in a single residual layer introduced by the $n$-stream residual design. The analysis reveals that HC increases the memory access cost by a factor approximately proportional to $n$. This excessive I/O demand significantly degrades training throughput without the mitigation of fused kernels. Besides, since $\mathcal{H}^{\mathrm{pre}}_{l}$, $\mathcal{H}^{\mathrm{post}}_{l}$, and $\mathcal{H}^{\mathrm{res}}_{l}$ involve learnable parameters, their intermediate activations are required for backpropagation. This results in a substantial increase in the GPU memory footprint, often necessitating gradient checkpointing to maintain feasible memory usage. Furthermore, HC requires $n$-fold more communication cost in pipeline parallelism, leading to larger bubbles and decreasing the training throughput.
 
-##### Keep Sampling Mask
-Top-p and top-k sampling are used to enhance response quality. To address the mismatch between the action spaces of $\pi_{\mathrm{old}}$ and $\pi_{\theta}$ caused by truncation, we preserve the truncation masks during sampling from $\pi_{\mathrm{old}}$ and apply them to $\pi_{\theta}$ during training.
+</section>
+</section>
 
-### 3.2 Thinking in Tool-Use
+<section id="S4">
 
-#### 3.2.1 Thinking Context Management
-DeepSeek-R1 demonstrated that thinking processes enhance complex problem-solving. We integrated this into tool-calling scenarios. We developed a context management system tailored for tool-calling:
-*   Historical reasoning content is discarded only when a new **user message** is introduced. If only tool outputs are appended, reasoning content is **retained**.
-*   When reasoning traces are removed, the history of **tool calls and results** remains preserved.
+## 4 Method
 
-![Figure 4: Thinking retention mechanism in tool-calling scenarios.](https://arxiv.org/html/2512.02556v1/x5.jpeg)
-*Figure 4: Thinking retention mechanism in tool-calling scenarios.*
+<section id="S4.SS1">
 
-#### 3.2.2 Cold-Start
-We use carefully designed prompting to integrate reasoning and agentic capabilities. We designed system prompts that ask the model to reason before tool calls using the `<think></think>` tags. This enables the model to generate initial trajectories for subsequent reinforcement learning.
+### 4.1 Manifold-Constrained Hyper-Connections
+Drawing inspiration from the identity mapping principle, the core premise of *m*HC is to constrain the residual mapping $\mathcal{H}^{\mathrm{res}}_{l}$ onto a specific manifold. While the original identity mapping ensures stability by enforcing $\mathcal{H}^{\mathrm{res}}_{l}=\mathbf{I}$, it fundamentally precludes information exchange within the residual stream, which is critical for maximizing the potential of multi-stream architectures. Therefore, we propose projecting the residual mapping onto a manifold that simultaneously maintains the stability of signal propagation across layers and facilitates mutual interaction among residual streams to preserve the model’s expressivity. To this end, we restrict $\mathcal{H}^{\mathrm{res}}_{l}$ to be a doubly stochastic matrix, which has non-negative entries where both the rows and columns sum to 1. Formally, let $\mathcal{M}^{\mathrm{res}}$ denote the manifold of doubly stochastic matrices (also known as the Birkhoff polytope). We constrain $\mathcal{H}^{\mathrm{res}}_{l}$ to $\mathcal{P}_{\mathcal{M}^{\mathrm{res}}}(\mathcal{H}^{\mathrm{res}}_{l})$, defined as:
 
-#### 3.2.3 Large-Scale Agentic Tasks
-A diverse set of RL tasks is crucial for robustness. We used real-world tools (search APIs, Jupyter) and synthetic environments.
+$$\mathcal{P}_{\mathcal{M}^{\mathrm{res}}}(\mathcal{H}^{\mathrm{res}}_{l})\coloneq\left\{\mathcal{H}^{\mathrm{res}}_{l}\in\mathbb{R}^{n\times n}\mid\mathcal{H}^{\mathrm{res}}_{l}\mathbf{1}_{n}=\mathbf{1}_{n},\ \mathbf{1}^{\top}_{n}\mathcal{H}^{\mathrm{res}}_{l}=\mathbf{1}^{\top}_{n},\ \mathcal{H}^{\mathrm{res}}_{l}\geqslant 0\right\}, \quad (6)$$
 
-| Task | number of tasks | environment | prompt |
-| :--- | :---: | :---: | :---: |
-| code agent | 24667 | real | extracted |
-| search agent | 50275 | real | synthesized |
-| general agent | 4417 | synthesized | synthesized |
-| code interpreter | 5908 | real | extracted |
+where $\mathbf{1}_{n}$ represents the $n$-dimensional vector of all ones.
 
-*Table 1: The description of different agent tasks, including the number of tasks, environment type (real or synthesized), and prompt source (extracted or synthesized).*
+It is worth noting that when $n=1$, the doubly stochastic condition degenerates to the scalar $1$, thereby recovering the original identity mapping. The choice of double stochasticity confers several rigorous theoretical properties beneficial for large-scale model training:
 
-##### Search Agent
-We used a multi-agent pipeline to generate QA pairs from web corpora, validated them with verification agents, and scored them using a generative reward model for factual reliability.
+1. **Norm Preservation:** The spectral norm of a doubly stochastic matrix is bounded by 1 (i.e., $\|\mathcal{H}^{\mathrm{res}}_{l}\|_{2}\leq 1$). This implies that the learnable mapping is non-expansive, effectively mitigating the gradient explosion problem.
+2. **Compositional Closure:** The set of doubly stochastic matrices is closed under matrix multiplication. This ensures that the composite residual mapping across multiple layers, $\prod_{i=1}^{L-l}\mathcal{H}_{L-i}^{\mathrm{res}}$, remains doubly stochastic, thereby preserving stability throughout the entire depth of the model.
+3. **Geometric Interpretation via the Birkhoff Polytope:** The set $\mathcal{M}^{\mathrm{res}}$ forms the Birkhoff polytope, which is the convex hull of the set of permutation matrices. This provides a clear geometric interpretation: the residual mapping acts as a convex combination of permutations. Mathematically, the repeated application of such matrices tends to increase the mixing of information across streams monotonically, effectively functioning as a robust feature fusion mechanism.
 
-##### Code Agent
-We constructed environments from GitHub issue-PR pairs. An automated agent powered by DeepSeek-V3.2 builds executable environments, resolving dependencies and ensuring gold patches fix issues while passing tests.
+Additionally, we impose non-negativity constraints on the input mappings $\mathcal{H}^{\mathrm{pre}}_{l}$ and output mappings $\mathcal{H}^{\mathrm{post}}_{l}$. This constrain prevents signal cancellation arising from the composition of positive and negative coefficients, which can also be considered as a special manifold projection.
 
-##### Code Interpreter Agent
-We curate problems in math, logic, and data science that require Jupyter Notebook execution for solutions.
+</section>
 
-##### General Agent
-We synthesized 1,827 task-oriented environments (e.g., trip planning). The workflow involves sandbox data retrieval, tool function synthesis, and iterative task difficulty scaling with verification functions.
+<section id="S4.SS2">
 
----
-**An Example of Synthesized Task: Trip Planning**
-I’m planning a three-day trip starting from Hangzhou, and I need help creating an itinerary from October 1st to October 3rd, 2025. A few important requirements: I don’t want to repeat any cities, hotels, attractions, or restaurants during the entire trip... (Full constraints omitted for brevity).
+### 4.2 Parameterization and Manifold Projection
+In this section, we detail the calculation process of $\mathcal{H}^{\mathrm{pre}}_{l},\mathcal{H}^{\mathrm{post}}_{l},\text{and }\mathcal{H}^{\mathrm{res}}_{l}$ in *m*HC. Given the input hidden matrix $\mathbf{x}_{l}\in\mathbb{R}^{n\times C}$ at the $l$-th layer, we first flatten it into a vector $\vec{\mathbf{x}}_{l}=\text{vec}(\mathbf{x}_{l})\in\mathbb{R}^{1\times nC}$ to preserve full context information. Then, we follow the original HC formulation to get the dynamic mappings and the static mappings as follows:
 
-**Tool Set for Trip Planning**
-*   `get_all_attractions_by_city(city)`: Get all attractions for given city.
-*   `get_all_cities()`: Get all cities from the database.
-*   `get_all_hotels_by_city(city)`: Get all hotels for given city.
-*   (Additional tools for transport, weather, etc.)
----
+$$\begin{cases}\vec{\mathbf{x}}^{\prime}_{l}=\text{RMSNorm}(\vec{\mathbf{x}}_{l})\\ \tilde{\mathcal{H}}^{\mathrm{pre}}_{l}=\alpha_{l}^{\mathrm{pre}}\cdot(\vec{\mathbf{x}}^{\prime}_{l}\varphi^{\mathrm{pre}}_{l})+\mathbf{b}_{l}^{\mathrm{pre}}\\ \tilde{\mathcal{H}}^{\mathrm{post}}_{l}=\alpha_{l}^{\mathrm{post}}\cdot(\vec{\mathbf{x}}^{\prime}_{l}\varphi^{\mathrm{post}}_{l})+\mathbf{b}_{l}^{\mathrm{post}}\\ \tilde{\mathcal{H}}^{\mathrm{res}}_{l}=\alpha_{l}^{\mathrm{res}}\cdot\text{mat}(\vec{\mathbf{x}}^{\prime}_{l}\varphi^{\mathrm{res}}_{l})+\mathbf{b}_{l}^{\mathrm{res}},\\ \end{cases} \quad (7)$$
 
-## 4 Evaluation
+where $\varphi^{\mathrm{pre}}_{l},\varphi^{\mathrm{post}}_{l}\in\mathbb{R}^{nC\times n}$ and $\varphi^{\mathrm{res}}_{l}\in\mathbb{R}^{nC\times n^{2}}$ are linear projections for dynamic mappings and $\text{mat}(\cdot)$ is a reshape function from $\mathbb{R}^{1\times n^{2}}$ to $\mathbb{R}^{n\times n}$.
 
-### 4.1 Main Results
-We evaluate models across a broad range of benchmarks including MMLU-Pro, GPQA Diamond, Human Last Exam (HLE), LiveCodeBench, etc.
+Then, the final constrained mappings are obtained via:
 
-| Benchmark (Metric) | Claude-4.5-Sonnet | GPT-5 High | Gemini-3.0 Pro | Kimi-K2 Thinking | MiniMax M2 | DeepSeek-V3.2 Thinking |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| MMLU-Pro (EM) | 88.2 | 87.5 | **90.1** | 84.6 | 82.0 | **85.0** |
-| GPQA Diamond (P@1) | 83.4 | 85.7 | **91.9** | **84.5** | 77.7 | 82.4 |
-| HLE (Pass@1) | 13.7 | 26.3 | **37.7** | 23.9 | 12.5 | **25.1** |
-| LiveCodeBench | 64.0 | 84.5 | **90.7** | 82.6 | 83.0 | **83.3** |
-| AIME 2025 | 87.0 | 94.6 | **95.0** | **94.5** | 78.3 | 93.1 |
-| SWE Verified | **77.2** | 74.9 | 76.2 | 71.3 | 69.4 | **73.1** |
-| BrowseComp | 24.1 | **54.9** | - | -/60.2* | 44.0 | **51.4/67.6\*** |
-| $\tau^2$-Bench | 84.7 | 80.2 | **85.4** | 74.3 | 76.9 | **80.3** |
+$$\begin{cases}\mathcal{H}^{\mathrm{pre}}_{l}=\sigma(\tilde{\mathcal{H}}^{\mathrm{pre}}_{l})\\ \mathcal{H}^{\mathrm{post}}_{l}=2\sigma(\tilde{\mathcal{H}}^{\mathrm{post}}_{l})\\ \mathcal{H}^{\mathrm{res}}_{l}=\text{Sinkhorn-Knopp}(\tilde{\mathcal{H}}^{\mathrm{res}}_{l}),\end{cases} \quad (8)$$
 
-*Table 2: Comparison between DeepSeek-V3.2 and closed/open models. Numbers in bold represent best scores in class.*
+where $\sigma(\cdot)$ denotes the Sigmoid function. The $\text{Sinkhorn-Knopp}(\cdot)$ operator firstly makes all elements to be positive via an exponent operator and then conducts iterative normalization process that alternately rescales rows and columns to sum to 1. Specifically, given a positive matrix $\mathbf{M}^{(0)}=\exp(\tilde{\mathcal{H}}^{\mathrm{res}}_{l})$ as the start point, the normalization iteration proceeds as:
 
-DeepSeek-V3.2 achieves similar performance with GPT-5-high on reasoning tasks but is slightly worse than Gemini-3.0-Pro. In code agent evaluations, it significantly outperforms other open-source models.
+$$\mathbf{M}^{(t)}=\mathcal{T}_{r}\left(\mathcal{T}_{c}(\mathbf{M}^{(t-1)})\right), \quad (9)$$
 
-### 4.2 Results of DeepSeek-V3.2-Speciale
+where $\mathcal{T}_{r}$ and $\mathcal{T}_{c}$ denote row and column normalization, respectively. This process converges to a doubly stochastic matrix $\mathcal{H}^{\mathrm{res}}_{l}=\mathbf{M}^{(t_{\text{max}})}$ as $t_{\text{max}}\to\infty$. We choose $t_{\text{max}}=20$ as a practical value in our experiments.
 
-| Benchmark | GPT-5 High | Gemini-3.0 Pro | Kimi-K2 Thinking | DeepSeek-V3.2 Thinking | DeepSeek-V3.2 Speciale |
+</section>
+
+<section id="S4.SS3">
+
+### 4.3 Efficient Infrastructure Design
+In this section, we detail the infrastructure design tailored for *m*HC. Through rigorous optimization, we implement *m*HC (with $n=4$) in large-scale models with a marginal training overhead of only 6.7%.
+
+#### 4.3.1 Kernel Fusion
+Observing that RMSNorm in *m*HC imposes significant latency when operating on the high-dimensional hidden state $\vec{\mathbf{x}}_{l}\in\mathbb{R}^{1\times nC}$, we reorder the dividing-by-norm operation to follow the matrix multiplication. This optimization maintains mathematical equivalence while improving efficiency. Furthermore, we employ mixed-precision strategies to maximize numerical accuracy without compromising speed, and fuse multiple operations with shared memory access into unified compute kernels to reduce memory bandwidth bottlenecks. Based on the inputs and parameters detailed in Eq. (10) to (13), we implement three specialized *m*HC kernels to compute $\mathcal{H}^{\mathrm{pre}}_{l}$, $\mathcal{H}^{\mathrm{post}}_{l}$, and $\mathcal{H}^{\mathrm{res}}_{l}$. In these kernels, the biases and linear projections are consolidated into $\mathbf{b}_{l}$ and $\varphi_{l}$, and the RMSNorm weight is also absorbed in $\varphi_{l}$.
+
+*   Eq. (14) to (15): We develop a unified kernel that fuses two scans on $\vec{\mathbf{x}}_{l}$, leveraging matrix multiplication units to maximize memory bandwidth utilization. The backward pass—comprising two matrix multiplications—is similarly consolidated into a single kernel, eliminating redundant reloading of $\vec{\mathbf{x}}_{l}$. Both kernels feature a finely tuned pipeline (load, cast, compute, store) to efficiently handle mixed-precision processing.
+*   Eq. (16) to (18): These lightweight operations on small coefficients are opportunistically fused into a single kernel, significantly reducing kernel launch overhead.
+*   Eq. (19): We implement the Sinkhorn-Knopp iteration within a single kernel. For the backward pass, we derive a custom backward kernel that recomputes the intermediate results on-chip and traverses the entire iteration.
+
+$$\varphi_{l} : \text{tfloat32} [nC, n^{2}+2n] \quad (10)$$
+$$\vec{\mathbf{x}}_{l} : \text{bfloat16} [1, nC] \quad (11)$$
+$$\alpha_{l}^{\mathrm{pre}}, \alpha_{l}^{\mathrm{post}}, \alpha_{l}^{\mathrm{res}} : \text{float32} \text{ (Scalars)} \quad (12)$$
+$$\mathbf{b}_{l} : \text{float32} [1, n^{2}+2n] \quad (13)$$
+$$\left[{\tilde{\tilde{\mathcal{H}}}^{\mathrm{pre}}_{l}},{\tilde{\tilde{\mathcal{H}}}^{\mathrm{post}}_{l}},{\tilde{\tilde{\mathcal{H}}}^{\mathrm{res}}_{l}}\right] : \text{float32} = \vec{\mathbf{x}}_{l}\varphi_{l} \quad (14)$$
+$$r : \text{float32} = \|\vec{\mathbf{x}}_{l}\|_{2}/\sqrt{nC} \quad (15)$$
+$$\left[\tilde{\mathcal{H}}^{\mathrm{pre}}_{l}, \tilde{\mathcal{H}}^{\mathrm{post}}_{l}, \tilde{\mathcal{H}}^{\mathrm{res}}_{l}\right] : \text{float32} = 1/r\left[\alpha_{l}^{\mathrm{pre}}{\tilde{\tilde{\mathcal{H}}}^{\mathrm{pre}}_{l}}, \alpha_{l}^{\mathrm{post}}{\tilde{\tilde{\mathcal{H}}}^{\mathrm{post}}_{l}}, \alpha_{l}^{\mathrm{res}}{\tilde{\tilde{\mathcal{H}}}^{\mathrm{res}}_{l}}\right] + \mathbf{b}_{l} \quad (16)$$
+$$\mathcal{H}^{\mathrm{pre}}_{l} : \text{float32} = \sigma\left(\tilde{\mathcal{H}}^{\mathrm{pre}}_{l}\right) \quad (17)$$
+$$\mathcal{H}^{\mathrm{post}}_{l} : \text{float32} = 2\sigma\left(\tilde{\mathcal{H}}^{\mathrm{post}}_{l}\right) \quad (18)$$
+$$\mathcal{H}^{\mathrm{res}}_{l} : \text{float32} = \text{Sinkhorn-Knopp}\left(\tilde{\mathcal{H}}^{\mathrm{res}}_{l}\right) \quad (19)$$
+
+Using the coefficients derived from the aforementioned kernels, we introduce two additional kernels to apply these mappings: one for $\mathcal{F}_{\mathrm{pre}}\coloneq\mathcal{H}^{\mathrm{pre}}_{l}\mathbf{x}_{l}$ and another for $\mathcal{F}_{\mathrm{post,res}}\coloneq\mathcal{H}^{\mathrm{res}}_{l}\mathbf{x}_{l}+\mathcal{H}_{l}^{\mathrm{post}\,\top}\mathcal{F}(\cdot,\cdot)$. Through fusing the application of $\mathcal{H}^{\mathrm{post}}_{l}$ and $\mathcal{H}^{\mathrm{res}}_{l}$ with residual merging, we reduce the number of elements read from $(3n+1)C$ to $(n+1)C$ and the number of elements written from $3nC$ to $nC$ for this kernel. We efficiently implement the majority of kernels (excluding Eq. (14) to (15)) using TileLang. This framework streamlines the implementation of kernels with complex calculation process and allows us to fully utilize the memory bandwidth with minimal engineering effort.
+
+#### 4.3.2 Recomputing
+The $n$-stream residual design introduces substantial memory overhead during training. To mitigate this, we discard the intermediate activations of the *m*HC kernels after the forward pass and recompute them on-the-fly in the backward pass, through re-executing the *m*HC kernels without the heavy layer function $\mathcal{F}$. Consequently, for a block of $L_{r}$ consecutive layers, we need only store the input $\mathbf{x}_{l_{0}}$ to the first layer. Excluding lightweight coefficients while accounting for the pre-norm with in $\mathcal{F}$, Tab. 3 summarizes the intermediate activations preserved for the backward pass.
+
+| Activations | $\mathbf{x}_{l_{0}}$ | $\mathcal{F}(\mathcal{H}^{\mathrm{pre}}_{l}\mathbf{x}_{l},\mathcal{W}_{l})$ | $\mathbf{x}_{l}$ | $\mathcal{H}^{\mathrm{pre}}_{l}\mathbf{x}_{l}$ | $\text{RMSNorm}(\mathcal{H}^{\mathrm{pre}}_{l}\mathbf{x}_{l})$ |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| AIME 2025 | 94.6 (13k) | _95.0_ (15k) | 94.5 (24k) | 93.1 (16k) | **96.0** (23k) |
-| HMMT Feb | 88.3 (16k) | _97.5_ (16k) | 89.4 (31k) | 92.5 (19k) | **99.2** (27k) |
-| IMOAnswerBench| 76.0 (31k) | _83.3_ (18k) | 78.6 (37k) | 78.3 (27k) | **84.5** (45k) |
-| CodeForces | 2537 (29k) | **2708** (22k) | - | 2386 (42k) | _2701_ (77k) |
+| Size (Elements) | $nC$ | $C$ | $nC$ | $C$ | $C$ |
+| Stored Method | Every $L_{r}$ layers | Every layer | Transient inside $L_{r}$ layers | | |
+*Table 3: Stored and Recomputed Intermediate Activations. We list per token activation preserved for the backward pass and the transient activation recomputed in $L_{r}$ consecutive layers. Layer $l_{0}$ represents the first layer in $L_{r}$ layers and layer $l$ is in $[l_{0},l_{0}+L_{r}-1]$.*
 
-*Table 3: Benchmark performance and efficiency of reasoning models. Cells show accuracy and output token count.*
+Since *m*HC kernels recomputation is performed for blocks of $L_{r}$ consecutive layers, given a total of $L$ layers, we must persistently store the first layer input $\mathbf{x}_{l_{0}}$ for all $\lceil\tfrac{L}{L_{r}}\rceil$ blocks for the backward pass. In addition to this resident memory, the recomputation process introduces a transient memory overhead of $(n+2)C\times L_{r}$ elements for the active block, which determines the peak memory usage during backpropagation. Consequently, we determine the optimal block size $L_{r}^{*}$ by minimizing the total memory footprint corresponded to $L_{r}$:
 
-| Competition | P1 | P2 | P3 | P4 | P5 | P6 | Overall | Medal |
+$$L_{r}^{*}=\arg\min_{L_{r}}\left[nC\times\left\lceil\frac{L}{L_{r}}\right\rceil+(n+2)C\times L_{r}\right]\approx\sqrt{\frac{nL}{n+2}}. \quad (20)$$
+
+Furthermore, pipeline parallelism in large-scale training imposes a constraint: recomputation blocks must not cross pipeline stage boundaries. Observing that the theoretical optimum $L_{r}^{*}$ typically aligns with the number of layers per pipeline stage, we choose to synchronize the recomputation boundaries with the pipeline stages.
+
+#### 4.3.3 Overlapping Communication in DualPipe
+In large-scale training, pipeline parallelism is the standard practice for mitigating parameter and gradient memory footprints. Specifically, we adopt the DualPipe schedule, which effectively overlaps scale-out interconnected communication traffic, such as those in expert and pipeline parallelism. However, compared to the single-stream design, the proposed $n$-stream residual in *m*HC incurs substantial communication latency across pipeline stages. Furthermore, at stage boundaries, the recomputation of *m*HC kernels for all $L_{r}$ layers introduces non-negligible computational overhead. To address these bottlenecks, we extend the DualPipe schedule (see Fig. 4) to facilitate improved overlapping of communication and computation at pipeline stage boundaries.
+
+![Figure 4: Communication-Computation Overlapping for mHC.](https://arxiv.org/html/2512.24880v2/x4.png)
+*Figure 4: Communication-Computation Overlapping for mHC. We extend the DualPipe schedule to handle the overhead introduced by mHC. Lengths of each block are illustrative only and do not represent actual duration. (F), (B), (W) refers to forward pass, backward pass, weight gradient computation, respectively. $\mathcal{F}^{\mathrm{A}}$ and $\mathcal{F}^{\mathrm{M}}$ represents kernels corresponded to Attention and MLP, respectively.*
+
+Notably, to prevent blocking the communication stream, we execute the $\mathcal{F}_{\mathrm{post,res}}$ kernels of MLP (i.e. FFN) layers on a dedicated high-priority compute stream. We further refrain from employing persistent kernels for long-running operations in attention layers, thereby preventing extended stalls. This design enables the preemption of overlapped attention computations, allowing for flexible scheduling while maintaining high utilization of the compute device’s processing units. Furthermore, the recomputation process is decoupled from pipeline communication dependencies, as the initial activation of each stage $\mathbf{x}_{l_{0}}$ is already cached locally.
+
+</section>
+</section>
+
+<section id="S5">
+
+## 5 Experiments
+
+<section id="S5.SS1">
+
+### 5.1 Experimental Setup
+We validate the proposed method via language model pre-training, conducting a comparative analysis between the baseline, HC, and our proposed *m*HC. Utilizing MoE architectures inspired by DeepSeek-V3, we train four distinct model variants to cover different evaluation regimes. Specifically, the expansion rate $n$ for both HC and *m*HC is set to 4. Our primary focus is a 27B model trained with a dataset size proportional to its parameters, which serves as the subject for our system-level main results. Expanding on this, we analyze the compute scaling behavior by incorporating smaller 3B and 9B models trained with proportional data, which allows us to observe performance trends across varying compute. Additionally, to specifically investigate the token scaling behavior, we train a separate 3B model on a fixed corpus of 1 trillion tokens. Detailed model configurations and training hyper-parameters are provided in Appendix A.1.
+
+</section>
+
+<section id="S5.SS2">
+
+### 5.2 Main Results
+
+![Figure 5: Training Stability of Manifold-Constrained Hyper-Connections (mHC).](https://arxiv.org/html/2512.24880v2/x5.png)
+*Figure 5: Training Stability of Manifold-Constrained Hyper-Connections (mHC). This figure illustrates (a) the absolute training loss gap of mHC and HC relative to the baseline, and (b) the gradient norm of the three methods. All experiments utilize the 27B model. The results demonstrate that mHC exhibits improved stability in terms of both loss and gradient norm.*
+
+| Benchmark | BBH | DROP | GSM8K | HellaSwag | MATH | MMLU | PIQA | TriviaQA |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| IMO 2025 | 7 | 7 | 7 | 7 | 7 | 0 | 35/42 | Gold |
-| CMO 2025 | 18 | 18 | 9 | 21 | 18 | 18 | 102/126 | Gold |
-| IOI 2025 | 100 | 82 | 72 | 100 | 55 | 83 | 492/600 | Gold |
+| (Metric) | (EM) | (F1) | (EM) | (Acc.) | (EM) | (Acc.) | (Acc.) | (EM) |
+| # Shots | 3-shot | 3-shot | 8-shot | 10-shot | 4-shot | 5-shot | 0-shot | 5-shot |
+| 27B Baseline | 43.8 | 47.0 | 46.7 | 73.7 | 22.0 | 59.0 | 78.5 | 54.3 |
+| 27B w/ HC | 48.9 | 51.6 | 53.2 | 74.3 | **26.4** | 63.0 | 79.9 | 56.3 |
+| **27B w/ *m*HC** | **51.0** | **53.9** | **53.8** | **74.7** | 26.0 | **63.4** | **80.5** | **57.6** |
+*Table 4: System-level Benchmark Results for 27B Models. This table compares the zero-shot and few-shot performance of the Baseline, HC, and mHC across 8 diverse downstream benchmarks. mHC consistently outperforms the Baseline and surpasses HC on the majority of benchmarks, demonstrating its effectiveness in large-scale pre-training.*
 
-*Table 4: Performance of DeepSeek-V3.2-Speciale in top-tier competitions. Gold-medal level performance achieved.*
+We begin by examining the training stability and convergence of the 27B models. As illustrated in Fig. 5 (a), *m*HC effectively mitigates the training instability observed in HC, achieving a final loss reduction of 0.021 compared to the baseline. This improved stability is further corroborated by the gradient norm analysis in Fig. 5 (b), where *m*HC exhibits significantly better behavior than HC, maintaining a stable profile comparable to the baseline.
 
-### 4.3 Synthesis Agentic Tasks
-Synthetic tasks are challenging; frontier models reach at most 62% on these tasks. RL on synthetic data yields substantial improvements on Tau2Bench and MCP benchmarks compared to SFT-only checkpoints.
+Tab. 4 presents the downstream performance across a diverse set of benchmarks. *m*HC yields comprehensive improvements, consistently outperforming the baseline and surpassing HC on the majority of tasks. Notably, compared to HC, *m*HC further enhances the model’s reasoning capabilities, delivering performance gains of 2.1% on BBH and 2.3% on DROP.
 
-### 4.4 Context Management of Search Agent
-To address context window limits (128k), we use strategies like Summary, Discard-75%, and Discard-all. Discard-all achieves a score of 67.6 on BrowseComp, comparable to parallel scaling but more efficient.
+</section>
 
-![Figure 6: Accuracy of Browsecomp with different test-time compute expansion strategies.](https://arxiv.org/html/2512.02556v1/x6.png)
-*Figure 6: Accuracy of Browsecomp with different test-time compute expansion strategies.*
+<section id="S5.SS3">
 
-## 5 Conclusion, Limitation, and Future Work
-DeepSeek-V3.2 bridges the gap between efficiency and reasoning. DSA addresses complexity, while increased RL budget allows GPT-5 level reasoning. Limitations include a world knowledge gap due to pre-training FLOPs and lower token efficiency compared to Gemini-3.0-Pro. Future work will focus on scaling pre-training and optimizing reasoning intelligence density.
+### 5.3 Scaling Experiments
 
-## Appendices
+![Figure 6: Scaling properties of mHC compared to the Baseline.](https://arxiv.org/html/2512.24880v2/x6.png)
+*Figure 6: Scaling properties of mHC compared to the Baseline. (a) Compute Scaling Curve. Solid lines depict the performance gap across different compute budgets. Each point represents a specific compute-optimal configuration of model size and dataset size, scaling from 3B and 9B to 27B parameters. (b) Token Scaling Curve. Trajectory of the 3B model during training. Each point represents the model’s performance at different training tokens. Detailed architectures and training configurations are provided in Appendix A.1.*
 
-### Appendix A: MHA and MQA Modes of MLA
-![Figure 7: Illustration of MHA and MQA modes of MLA.](https://arxiv.org/html/2512.02556v1/x7.png)
+To assess the scalability of our approach, we report the relative loss improvement of *m*HC against the baseline across different scales. In Fig. 6 (a), we plot the compute scaling curve spanning 3B, 9B, and 27B parameters. The trajectory indicates that the performance advantage is robustly maintained even at higher computational budgets, showing only marginal attenuation. Furthermore, we examine the within-run dynamics in Fig. 6 (b), which presents the token scaling curve for the 3B model. Collectively, these findings validate the effectiveness of *m*HC in large-scale scenarios. This conclusion is further corroborated by our in-house large-scale training experiments.
 
-### Appendix B: Cold Start Template
-(Detailed system prompts for reasoning and agentic modes provided in tables 6-8 of the original document).
+</section>
 
-### Appendix C: Non-thinking DeepSeek-V3.2 Agentic Evaluation
-Non-thinking mode remains competitive though slightly lower than thinking mode (e.g., 72.1% on SWE Verified vs 73.1% in thinking mode).
+<section id="S5.SS4">
 
-### Appendix D: Evaluation Method
-Standard competition rules were followed. IOI utilized a 50-submission strategy. IMO/CMO used a generate-verify-refine loop.
+### 5.4 Stability Analysis
 
-### Appendix E: Author List
-(Extensive list of researchers across Research & Engineering, Data Annotation, and Business & Compliance teams).
+![Figure 7: Propagation Stability of Manifold-Constrained Hyper-Connections (mHC).](https://arxiv.org/html/2512.24880v2/x7.png)
+*Figure 7: Propagation Stability of Manifold-Constrained Hyper-Connections (mHC). This figure illustrates the propagation dynamics of (a) the single-layer mapping $\mathcal{P}_{\mathcal{M}^{\mathrm{res}}}(\mathcal{H}^{\mathrm{res}}_{l})$ and (b) the composite mapping $\prod_{i=1}^{L-l}\mathcal{P}_{\mathcal{M}^{\mathrm{res}}}(\mathcal{H}_{L-i}^{\mathrm{res}})$ within the 27B model. The results demonstrate that mHC significantly enhances propagation stability compared to HC.*
+
+![Figure 8: Visualizations of Learnable Mappings.](https://arxiv.org/html/2512.24880v2/x8.png)
+*Figure 8: Visualizations of Learnable Mappings. This figure displays representative single-layer and composite mappings for HC (first row) and mHC (second row). Each matrix is computed by averaging over all tokens within a selected sequence. The labels annotated along the y-axis and x-axis indicate the forward signal gain (row sum) and the backward gradient gain (column sum), respectively.*
+
+Similar to Fig. 3, Fig. 7 illustrates the propagation stability of *m*HC. Ideally, the single-layer mapping satisfies the doubly stochastic constraint, implying that both the forward signal gain and the backward gradient gain should equal to 1. However, practice implementations utilizing the Sinkhorn-Knopp algorithm must limit the number of iterations to achieve computational efficiency. In our settings, we use 20 iterations to obtain an approximate solution. Consequently, as shown in Fig. 7(a), the backward gradient gain deviates slightly from 1. In the composite case shown in Fig. 7(b), the deviation increases but remains bounded, reaching a maximum value of approximately 1.6. Notably, compared to the maximum gain magnitude of nearly 3000 in HC, *m*HC significantly reduces it by three orders of magnitude. These results demonstrate that *m*HC significantly enhances propagation stability compared to HC, ensuring stable forward signal and backward gradient flows. Additionally, Fig. 8 displays representative mappings. We observe that for HC, when the maximum gain is large, other values also tend to be significant, which indicates general instability across all propagation paths. In contrast, *m*HC consistently yields stable results.
+
+</section>
+</section>
+
+<section id="S6">
+
+## 6 Conclusion and Outlook
+
+In this paper, we identify that while expanding the width of residual stream and diversifying connections yields performance gains as proposed in Hyper-Connections (HC), the unconstrained nature of these connections leads to signal divergence. This disruption compromises the conservation of signal energy across layers, inducing training instability and hindering the scalability of deep networks. To address these challenges, we introduce **Manifold-Constrained Hyper-Connections** (***m*HC**), a generalized framework that projects the residual connection space onto a specific manifold. By employing the Sinkhorn-Knopp algorithm to enforce a doubly stochastic constraint on residual mappings, *m*HC transforms signal propagation into a convex combination of features. Empirical results confirm that *m*HC effectively restores the identity mapping property, enabling stable large-scale training with superior scalability compared to conventional HC. Crucially, through efficient infrastructure-level optimizations, *m*HC delivers these improvements with negligible computational overhead.
+
+As a generalized extension of the HC paradigm, *m*HC opens several promising avenues for future research. Although this work utilizes doubly stochastic matrices to ensure stability, the framework accommodates the exploration of diverse manifold constraints tailored to specific learning objectives. We anticipate that further investigation into distinct geometric constraints could yield novel methods that better optimize the trade-off between plasticity and stability. Furthermore, we hope *m*HC rejuvenates community interest in macro-architecture design. By deepening the understanding of how topological structures influence optimization and representation learning, *m*HC will help address current limitations and potentially illuminate new pathways for the evolution of next-generation foundational architectures.
+
+</section>
+
+---
+
+<section id="A1">
+
+## Appendix A
+
+<section id="A1.SS1">
+
+### A.1 Detailed Model Specifications and Hyper-parameters.
+
+| Attribute | 3B | 9B | 27B | 3B (1T Tokens) |
+| :--- | :---: | :---: | :---: | :---: |
+| Vocab Params | 331M | 496M | 662M | 331M |
+| Active Params | 612M | 1.66B | 4.14B | 612M |
+| Total Params | 2.97B | 9.18B | 27.0B | 2.97B |
+| Layers | 12 | 18 | 30 | 12 |
+| Leading Dense Layers | 1 | 1 | 1 | 1 |
+| Routed Experts | 64 | 64 | 72 | 64 |
+| Active Experts | 6 | 6 | 6 | 6 |
+| Shared Experts | 2 | 2 | 2 | 2 |
+| Dimension | 1280 | 1920 | 2560 | 1280 |
+| FFN Dimension | 896 | 1280 | 1536 | 896 |
+| Load Balancing Method | Loss-Free | Loss-Free | Loss-Free | Loss-Free |
+| Attention Heads | 16 | 24 | 32 | 16 |
+| Attention Dimension | 128 | 128 | 128 | 128 |
+| Attention Variant | MLA | MLA | MLA | MLA |
+| KV Rank | 512 | 512 | 512 | 512 |
+| Position Embedding | RoPE | RoPE | RoPE | RoPE |
+| RoPE Dimension | 64 | 64 | 64 | 64 |
+| RoPE $\theta$ | 10000 | 10000 | 10000 | 10000 |
+| Layer Norm Type | RMSNorm | RMSNorm | RMSNorm | RMSNorm |
+| Layer Norm $\varepsilon$ | 1e-20 | 1e-20 | 1e-20 | 1e-20 |
+| *m*HC/HC Expansion Rate $n$ | 4 | 4 | 4 | 4 |
+| *m*HC/HC Gating Factor Init $\alpha$ | 0.01 | 0.01 | 0.01 | 0.01 |
+| *m*HC Sinkhorn-Knopp $t_{\text{max}}$ | 20 | 20 | 20 | 20 |
+| Sequence Length | 4096 | 4096 | 4096 | 4096 |
+| Vocab Size | 129280 | 129280 | 129280 | 129280 |
+| Batch Size | 320 | 512 | 1280 | 2560 |
+| Training Steps | 30000 | 50000 | 50000 | 100000 |
+| Training Tokens | 39.3B | 105B | 262B | 1.05T |
+| Warmup Steps | 2000 | 2000 | 2000 | 2000 |
+| Optimizer | AdamW | AdamW | AdamW | AdamW |
+| AdamW Betas | (0.9, 0.95) | (0.9, 0.95) | (0.9, 0.95) | (0.9, 0.95) |
+| AdamW $\varepsilon$ | 1e-20 | 1e-20 | 1e-20 | 1e-20 |
+| Base Learning Rate | 8.6e-4 | 5.9e-4 | 4.0e-4 | 9.0e-4 |
+| Lr Scheduler | Step | Step | Step | Step |
+| Lr Decay Step Ratio | [0.8 ×, 0.9 ×] | [0.8 ×, 0.9 ×] | [0.8 ×, 0.9 ×] | [0.8 ×, 0.9 ×] |
+| Lr Decay Rate | [0.316, 0.1] | [0.316, 0.1] | [0.316, 0.1] | [0.316, 0.1] |
+| Weight Decay | 0.1 | 0.1 | 0.1 | 0.1 |
+*Table 5: Detailed Model Specifications and Hyper-parameters. This table presents the architectural configurations for the 3B, 9B, and 27B models based on the DeepSeek-V3 architecture. It outlines the specific hyper-parameters for mHC and HC, including the residual stream expansion and Sinkhorn-Knopp settings, alongside the optimization and training protocols used in the experiments.*
+
+</section>
+</section>
