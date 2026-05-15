@@ -1,11 +1,8 @@
 ---
 slug: bab-1-2
-title: "Mengatasi Masalah Kemacetan Kinerja"
+title: "Perjalanan Sebuah Token Tunggal Melalui Arsitektur LLM"
 layout: chapter
 ---
-
-# Perjalanan Sebuah Token Tunggal Melalui Arsitektur LLM
-
 
 ![Journey of a single token through the LLM Architecture](https://raw.githubusercontent.com/Mayankpratapsingh022/blog-site/refs/heads/master/public/images/blog/Journey_of_a_single_token.png)
 
