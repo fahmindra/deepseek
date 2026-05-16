@@ -1,5 +1,5 @@
 ---
-slug: ch-11-15
+slug: ch-11-25
 title: "DeepSeek-OCR 2"
 layout: chapter
 ---
