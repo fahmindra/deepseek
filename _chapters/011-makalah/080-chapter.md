@@ -1,5 +1,5 @@
 ---
-slug: ch-11-04
+slug: ch-11-08
 title: "DeepSeek-Coder-V2"
 layout: chapter
 ---
