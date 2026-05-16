@@ -1,10 +1,10 @@
 ---
 slug: ch-11-01
-title: "DeepSeek LLM: Menskalakan Model Bahasa Sumber Terbuka dengan Pendekatan Jangka Panjang (Longtermism)"
+title: "DeepSeek LLM"
 layout: chapter
 ---
 
-## Pendahuluan
+## DeepSeek LLM: Menskalakan Model Bahasa Sumber Terbuka dengan Pendekatan Jangka Panjang (Longtermism)
 
 Perkembangan pesat Model Bahasa Besar atau *Large Language Models* (LLMs) sumber terbuka (*open-source*) telah mencapai titik yang sungguh luar biasa dalam beberapa tahun terakhir. Di dalam literatur terdahulu, hukum penskalaan (*scaling laws*)—yakni prinsip matematis yang memandu bagaimana kinerja model meningkat seiring dengan penambahan ukuran model dan data—sering kali menyajikan kesimpulan yang bervariasi. Ketidakkonsistenan ini menciptakan "awan gelap" atau ketidakpastian dalam upaya menskalakan LLMs. 
 

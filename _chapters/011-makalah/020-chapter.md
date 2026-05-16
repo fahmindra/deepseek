@@ -1,10 +1,10 @@
 ---
 slug: ch-11-02
-title: "DeepSeekMoE - Menuju Spesialisasi Pakar Puncak dalam Model Bahasa *Mixture-of-Experts*"
+title: "DeepSeekMoE"
 layout: chapter
 ---
 
-## Abstrak dan Orientasi Bab
+## DeepSeekMoE - Menuju Spesialisasi Pakar Puncak dalam Model Bahasa *Mixture-of-Experts*
 Di era Model Bahasa Besar (*Large Language Models*/LLMs) saat ini, *Mixture-of-Experts* (MoE) atau "Campuran Para Pakar" merupakan arsitektur yang sangat menjanjikan untuk mengelola dan menekan biaya komputasi saat kita menskalakan (memperbesar) parameter model. Namun, sebagai mahasiswa Kecerdasan Buatan, Anda harus menyadari bahwa arsitektur MoE konvensional seperti GShard—yang hanya mengaktifkan top-$K$ dari total $N$ pakar—menghadapi tantangan besar dalam memastikan **spesialisasi pakar (*expert specialization*)**. Spesialisasi pakar berarti setiap "pakar" (sub-jaringan) memperoleh pengetahuan yang terfokus dan tidak tumpang tindih.
 
 Sebagai respons terhadap masalah ini, bab ini akan membedah arsitektur **DeepSeekMoE** yang dirancang menuju spesialisasi pakar tingkat puncak. Arsitektur ini melibatkan dua strategi utama:

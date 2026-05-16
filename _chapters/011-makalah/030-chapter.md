@@ -1,10 +1,10 @@
 ---
 slug: ch-11-03
-title: "DeepSeek-Coder - Ketika Model Bahasa Besar Bertemu Pemrograman"
+title: "DeepSeek-Coder"
 layout: chapter
 ---
 
-## 1. Abstrak
+## DeepSeek-Coder - Ketika Model Bahasa Besar Bertemu Pemrograman
 
 Perkembangan pesat Model Bahasa Besar (*Large Language Models*/LLMs) telah merevolusi kecerdasan kode (*code intelligence*) dalam pengembangan perangkat lunak. Namun, dominasi model bersumber tertutup (*closed-source*) telah membatasi penelitian dan pengembangan yang ekstensif di kalangan akademisi dan komunitas. Untuk mengatasi hambatan ini, diperkenalkan seri **DeepSeek-Coder**, sebuah rangkaian model kode sumber terbuka (*open-source*) dengan ukuran parameter mulai dari 1,3 Miliar (1.3B) hingga 33 Miliar (33B), yang dilatih dari awal (*trained from scratch*) pada 2 triliun token. 
 

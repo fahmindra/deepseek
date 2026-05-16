@@ -1,10 +1,10 @@
 ---
 slug: ch-11-04
-title: "DeepSeekMath - Mendorong Batas Penalaran Matematis pada Model Bahasa Terbuka"
+title: "DeepSeekMath"
 layout: chapter
 ---
 
-## Abstrak
+## DeepSeekMath - Mendorong Batas Penalaran Matematis pada Model Bahasa Terbuka
 
 Penalaran matematis (*mathematical reasoning*) memberikan tantangan yang sangat signifikan bagi Model Bahasa Besar (*Large Language Models* / LLMs) karena sifatnya yang kompleks dan terstruktur. Dalam bab ini, kita akan membedah **DeepSeekMath 7B**, sebuah model yang melanjutkan tahap prapelatihan (*pre-training*) dari model DeepSeek-Coder-Base-v1.5 7B. Model ini dilatih menggunakan 120 Miliar (*120B*) token yang berkaitan dengan matematika, yang bersumber dari *Common Crawl*, dipadukan dengan data bahasa alami (*natural language*) dan kode pemrograman.
 
