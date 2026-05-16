@@ -1,10 +1,10 @@
 ---
 slug: ch-11-09
-title: "Expert-Specialized Fine-Tuning"
+title: "ESFT"
 layout: chapter
 ---
 
-# Bab 1: Biarkan Ahli Berfokus pada Bidangnya: Pelatihan Halus Spesialisasi-Pakar untuk Model Bahasa Besar Berarsitektur Renggang
+# Expert-Specialized Fine-Tuning: Biarkan Ahli Berfokus pada Bidangnya: Pelatihan Halus Spesialisasi-Pakar untuk Model Bahasa Besar Berarsitektur Renggang
 
 ## Abstrak
 
