@@ -1,4 +1,4 @@
- ---
+---
 slug: bab-06
 title: "1.6 Summary"
 layout: chapter
